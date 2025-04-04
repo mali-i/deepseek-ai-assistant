@@ -1,0 +1,15 @@
+{
+    "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
+    "compilerOptions": {
+        /* 启用所有严格的类型检查选项. */
+        "strict": true,
+        /* 指定生成的 JavaScript 文件的模块系统. */
+        "module": "ESNext",
+        /* 指定 TypeScript 如何寻找和组织模块文件. */
+        "moduleResolution": "node",
+        /* 指定一组在运行时环境中默认导入的依赖项. */
+        "lib": ["ESNext", "DOM"],
+        /* 指定生成的 JavaScript 代码的语言版本. */
+        "target": "ESNext"
+    }
+}
