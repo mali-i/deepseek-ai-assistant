@@ -1,11 +1,11 @@
 {
-    "id": "obsidian-vue-sample-plugin",
-    "name": "01 Obsidian Vue Sample Plugin",
-    "version": "1.0.0",
-    "minAppVersion": "0.15.0",
-    "description": "This is a Vue sample plugin for Obsidian.",
-    "author": "Obsidian",
-    "authorUrl": "https://obsidian.md",
-    "fundingUrl": "https://obsidian.md/pricing",
+    "id": "Deepseek-ai-assistant",
+    "name": "Deepseek-ai-assistant",
+    "version": "0.0.1",
+    "minAppVersion": "0.0.0",
+    "description": "Help you to study with ai-prompting",
+    "author": "mali-i",
+    "authorUrl": "https://github.com/mali-i",
+    "fundingUrl": "",
     "isDesktopOnly": false
 }
