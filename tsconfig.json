@@ -10,6 +10,6 @@
         /* 指定一组在运行时环境中默认导入的依赖项. */
         "lib": ["ESNext", "DOM"],
         /* 指定生成的 JavaScript 代码的语言版本. */
-        "target": "ESNext"
+        "target": "ESNext",
     }
 }
