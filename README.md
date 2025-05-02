@@ -13,7 +13,7 @@ Problem-driven learning. You can directly copy the answers in the AI response to
 
 In addition, this plugin can count and display the questions you have raised every day for the past three months, so that you can easily review. I think it would be interesting to know what you asked three days ago or what you were interested in a month ago, and compare it to what you're interested in at the moment. This helps us capture the linear part of the non-linear flow of ideas.
 
-<img src="https://github.com/mali-i/obsidian-Deepseek-ai-assistant-plugin/blob/main/images/plugin_example.gif" width="300"/>
+<img src="https://github.com/mali-i/obsidian-Deepseek-ai-assistant-plugin/blob/main/images/plugin_example.gif"/>
 
 
 ## 如何使用 how to use
