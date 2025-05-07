@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { getIcon, ItemView, WorkspaceLeaf } from "obsidian";
 import MyPlugin from "./main";
 import { createApp } from "vue";
 import MainTemplate from "./components/MainTemplate.vue";
@@ -18,7 +18,10 @@ export class MyItemView extends ItemView{
         return "my-view"
     }
     getDisplayText(): string {
-        return "AI 助手"
+        return "AI Assistant"
+    }
+    getIcon():string {
+        return "bot"
     }
     async onOpen(){
         const { containerEl } = this;
