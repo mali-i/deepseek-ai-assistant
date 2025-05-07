@@ -1,6 +1,6 @@
 {
-    "id": "Deepseek-ai-assistant",
-    "name": "Deepseek-ai-assistant",
+    "id": "deepseek-ai-assistant",
+    "name": "deepseek-ai-assistant",
     "version": "1.0.0",
     "minAppVersion": "1.0.0",
     "description": "Help you to study with ai-prompting",
