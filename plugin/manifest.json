@@ -1,8 +1,8 @@
 {
     "id": "Deepseek-ai-assistant",
     "name": "Deepseek-ai-assistant",
-    "version": "0.0.1",
-    "minAppVersion": "0.0.0",
+    "version": "1.0.0",
+    "minAppVersion": "1.0.0",
     "description": "Help you to study with ai-prompting",
     "author": "mali-i",
     "authorUrl": "https://github.com/mali-i",
