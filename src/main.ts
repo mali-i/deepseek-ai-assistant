@@ -3,7 +3,7 @@ import { MyPluginSettingTab } from "./setting-tab";
 import {SettingsInterfaceType, DEFAULT_SETTINGS} from './settings'  // 导入设置接口类型
 import { MyItemView } from "./my-itemview";
 
-export default class MyPlugin extends Plugin {
+export default class Plugin_Deepseek_AI_Assistant extends Plugin {
     // private vueApp: ReturnType<typeof createApp> | null = null; // 创建vue应用实例
 
     settings:SettingsInterfaceType = DEFAULT_SETTINGS;

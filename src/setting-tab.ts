@@ -1,11 +1,11 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 
-import MyPlugin from "./main";
+import Plugin_Deepseek_AI_Assistant from "./main";
 import SettingTabTemplate from "./components/SettingTabTemplate.vue";
 
 export class MyPluginSettingTab extends PluginSettingTab {
-    plugin: MyPlugin;
-    constructor(app: App, plugin: MyPlugin) {
+    plugin: Plugin_Deepseek_AI_Assistant;
+    constructor(app: App, plugin: Plugin_Deepseek_AI_Assistant) {
         super(app, plugin);
         this.plugin = plugin;
     }

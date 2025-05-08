@@ -1,5 +1,5 @@
 import { getIcon, ItemView, WorkspaceLeaf } from "obsidian";
-import MyPlugin from "./main";
+import Plugin_Deepseek_AI_Assistant from "./main";
 import { createApp } from "vue";
 import MainTemplate from "./components/MainTemplate.vue";
 import ElementPlus from 'element-plus'
@@ -9,8 +9,8 @@ import { createPinia} from 'pinia'
 import { usePluginStore } from "./store/plugin";
 
 export class MyItemView extends ItemView{
-    plugin: MyPlugin;
-    constructor(leaf: WorkspaceLeaf, plugin: MyPlugin) {
+    plugin: Plugin_Deepseek_AI_Assistant;
+    constructor(leaf: WorkspaceLeaf, plugin: Plugin_Deepseek_AI_Assistant) {
         super(leaf);
         this.plugin = plugin;
     }
