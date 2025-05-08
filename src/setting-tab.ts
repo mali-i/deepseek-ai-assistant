@@ -3,7 +3,6 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import MyPlugin from "./main";
 import SettingTabTemplate from "./components/SettingTabTemplate.vue";
 
-
 export class MyPluginSettingTab extends PluginSettingTab {
     plugin: MyPlugin;
     constructor(app: App, plugin: MyPlugin) {
