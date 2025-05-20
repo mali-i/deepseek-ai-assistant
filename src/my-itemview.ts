@@ -15,7 +15,7 @@ export class MyItemView extends ItemView{
         this.plugin = plugin;
     }
     getViewType(): string {
-        return "my-view"
+        return "deepseek-ai-assistant-itemview"
     }
     getDisplayText(): string {
         return "AI Assistant"
