@@ -14,7 +14,7 @@
             
             <!-- List 区域：自适应高度，独立滚动 -->
             <div class="flex-1 w-full min-h-0 overflow-hidden">
-                <PromptLine :plugin="plugin"/>
+                <ConversationList :plugin="plugin" />
             </div>
             
             <!-- Footer 区域 (可选)：如设置按钮等，固定在底部 -->
@@ -53,7 +53,7 @@
 import AICard from "./AICard.vue";
 import HeatMap from "./HeatMap.vue";
 import DataPanel from "./DataPanel.vue";
-import PromptLine from "./PromptLine.vue";
+import ConversationList from "./ConversationList.vue";
 import { ref, onUnmounted } from 'vue';
 import { usePluginStore } from "../store/plugin";
 import { storeToRefs } from "pinia";
@@ -116,4 +116,3 @@ onUnmounted(() => {
 });
 
 </script>
-

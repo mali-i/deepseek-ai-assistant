@@ -1,54 +1,88 @@
 <template>
     <div class="flex flex-col h-full p-2 max-w-[900px] mx-auto w-full">
-        <!-- Answer Area -->
-        <div class="flex-1 overflow-hidden relative rounded-xl bg-transparent mb-6 group/answer">
-            <div v-if="!historyAnswer && !isLoading && !hasResponse" class="absolute inset-0 flex flex-col items-center justify-center text-[var(--text-muted)] opacity-50 pointer-events-none">
+        <div class="flex-none px-2 pb-2">
+            <div class="text-xs text-[var(--text-muted)] truncate flex items-center gap-2">
+                <span class="truncate">{{ currentConversation?.title || "New conversation" }}</span>
+                <span class="px-2 py-0.5 rounded bg-[var(--background-modifier-form-field)] text-[10px]">
+                    {{ chatModel }}
+                </span>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-hidden relative rounded-xl bg-transparent mb-4 group/answer">
+            <div
+                v-if="displayMessages.length === 0 && !isLoading"
+                class="absolute inset-0 flex flex-col items-center justify-center text-[var(--text-muted)] opacity-50 pointer-events-none"
+            >
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-4 overflow-visible">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                 </svg>
                 <span class="text-sm font-medium">Start a conversation</span>
             </div>
+
             <div v-if="isThinking" class="absolute inset-0 z-10">
                 <ThinkingClue />
             </div>
-            <div ref="answerContainerRef" class="answer-field absolute inset-0 overflow-y-auto p-6 font-sans leading-relaxed select-text cursor-text prose dark:prose-invert max-w-none"></div>
+
+            <div
+                ref="messageListRef"
+                class="absolute inset-0 overflow-y-auto p-4 space-y-3"
+            >
+                <div
+                    v-for="message in displayMessages"
+                    :key="message.id"
+                    class="rounded-xl border px-4 py-3"
+                    :class="message.role === 'user'
+                        ? 'bg-[var(--background-primary)] border-[var(--apple-border)]'
+                        : 'bg-[var(--background-secondary)] border-[var(--background-modifier-border)]'"
+                >
+                    <div class="text-[11px] uppercase tracking-wide text-[var(--text-muted)] mb-2">
+                        {{ message.role === "user" ? "You" : "Assistant" }}
+                    </div>
+                    <div
+                        :ref="(el) => setMessageRef(message.id, el as HTMLElement | null)"
+                        class="message-content prose dark:prose-invert max-w-none text-[var(--text-normal)] leading-relaxed"
+                    ></div>
+                </div>
+            </div>
         </div>
 
-        <!-- Input Area -->
         <div class="flex-none">
             <div class="w-full flex flex-col gap-3">
                 <div class="relative w-full bg-[var(--background-primary)] rounded-xl shadow-sm border border-[var(--apple-border)] transition-all duration-300 focus-within:ring-2 focus-within:ring-apple-blue/20 focus-within:border-apple-blue hover:shadow-md">
-                    <textarea 
+                    <textarea
                         ref="textareaRef"
-                        class="w-full p-4 pb-14 border-none rounded-xl resize-none text-[15px] leading-relaxed bg-transparent text-[var(--text-normal)] min-h-[120px] max-h-[250px] overflow-y-auto font-sans outline-none placeholder:text-[var(--text-muted)]" 
-                        v-model="inputContent" 
+                        class="w-full p-4 pb-14 border-none rounded-xl resize-none text-[15px] leading-relaxed bg-transparent text-[var(--text-normal)] min-h-[120px] max-h-[250px] overflow-y-auto font-sans outline-none placeholder:text-[var(--text-muted)]"
+                        v-model="inputContent"
                         placeholder="Ask anything..."
                         @input="adjustHeight"
                     ></textarea>
-                    
-                    <!-- Controls Bar -->
+
                     <div class="absolute bottom-3 right-3 left-3 flex justify-between items-center">
-                        <!-- Model Selector -->
                         <div class="relative group">
                             <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-[var(--apple-border)]">
-                                <select 
-                                    v-model="chatModel" 
+                                <select
+                                    v-model="chatModel"
                                     class="appearance-none bg-transparent border-none text-[12px] font-medium text-[var(--text-normal)] cursor-pointer pr-4 focus:outline-none font-sans"
                                 >
-                                    <option value="deepseek-reasoner">Deepseek R1</option>
-                                    <option value="deepseek-chat">Deepseek V3</option>
+                                    <option
+                                        v-for="model in availableModels"
+                                        :key="model"
+                                        :value="model"
+                                    >
+                                        {{ model }}
+                                    </option>
                                 </select>
                                 <div class="absolute right-2.5 pointer-events-none text-[var(--text-muted)]">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M6 9l6 6 6-6"/>
+                                        <path d="M6 9l6 6 6-6" />
                                     </svg>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Send Button -->
-                        <button 
-                            class="h-8 px-4 bg-apple-blue text-white border-none rounded-full cursor-pointer text-[13px] font-semibold transition-all duration-200 flex items-center justify-center shadow-sm hover:bg-blue-600 hover:shadow-md active:scale-95 disabled:bg-[var(--background-modifier-border)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100" 
+                        <button
+                            class="h-8 px-4 bg-apple-blue text-white border-none rounded-full cursor-pointer text-[13px] font-semibold transition-all duration-200 flex items-center justify-center shadow-sm hover:bg-blue-600 hover:shadow-md active:scale-95 disabled:bg-[var(--background-modifier-border)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100"
                             @click="submit"
                             :disabled="isLoading || !inputContent.trim()"
                         >
@@ -73,73 +107,172 @@
         </div>
     </div>
 </template>
+
 <script setup lang="ts">
-import { ref, computed , watch, nextTick} from 'vue';
-import { OpenAI } from 'openai';
-import {MarkdownRenderer, Notice} from 'obsidian';
-import {usePromptStore} from '../store/prompts'
-import ThinkingClue from './ThinkingClue.vue'
+import { computed, nextTick, ref, watch } from "vue";
+import { OpenAI } from "openai";
+import { MarkdownRenderer } from "obsidian";
+import { usePromptStore } from "../store/prompts";
+import ThinkingClue from "./ThinkingClue.vue";
 
 const props = defineProps<{
-    plugin: any
+    plugin: any;
 }>();
 
-const inputContent = ref('');
+const inputContent = ref("");
 const isLoading = ref(false);
 const isThinking = ref(false);
-const hasResponse = ref(false);
-const promptStore = usePromptStore()
-const chatModel = ref('deepseek-reasoner')
+const chatModel = ref("");
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
-const answerContainerRef = ref<HTMLElement | null>(null);
+const messageListRef = ref<HTMLElement | null>(null);
+const streamingAssistantText = ref("");
 
-const historyItem = computed(() => promptStore.historyCard)
-const historyAnswer = computed(()=>{
-    return historyItem.value?.answer || ''
-})
+const promptStore = usePromptStore();
+const messageRefs = new Map<string, HTMLElement>();
+
+const currentConversation = computed(() => promptStore.currentConversation);
+const currentMessages = computed(() => promptStore.currentMessages);
+const availableModels = computed<string[]>(() => {
+    const configured = props.plugin.settings.MODEL_OPTIONS;
+    if (Array.isArray(configured) && configured.length > 0) {
+        return configured;
+    }
+    return ["deepseek-reasoner", "deepseek-chat"];
+});
+const systemPrompt = computed(() => {
+    const prompt = props.plugin.settings.SYSTEM_PROMPT?.trim();
+    return prompt || "你是一个AI助手，请根据用户的问题给出回答";
+});
+
+const displayMessages = computed(() => {
+    const messages = [...currentMessages.value];
+    if (streamingAssistantText.value) {
+        messages.push({
+            id: "__streaming_assistant__",
+            timestamp: Date.now(),
+            role: "assistant",
+            content: streamingAssistantText.value
+        });
+    }
+    return messages;
+});
 
 const adjustHeight = () => {
     const textarea = textareaRef.value;
-    if (textarea) {
-        // 使用 requestAnimationFrame 避免 ResizeObserver loop 错误
-        window.requestAnimationFrame(() => {
-            textarea.style.height = 'auto';
-            textarea.style.height = textarea.scrollHeight + 'px';
-        });
+    if (!textarea) {
+        return;
     }
-}
+    window.requestAnimationFrame(() => {
+        textarea.style.height = "auto";
+        textarea.style.height = `${textarea.scrollHeight}px`;
+    });
+};
 
-watch(inputContent, () => {
-    nextTick(adjustHeight);
-});
-answerContainerRef.value;
-watch(historyAnswer,async ()=>{
-    // console.log('监听answerContainerRef.value;
-    const container = document.querySelector('.answer-field') as HTMLElement
-    if(container && historyAnswer.value) {
+const setMessageRef = (id: string, element: HTMLElement | null) => {
+    if (!element) {
+        messageRefs.delete(id);
+        return;
+    }
+    messageRefs.set(id, element);
+};
+
+const renderMessages = async () => {
+    const view = props.plugin.app.workspace.getLeavesOfType("deepseek-ai-assistant-itemview")[0]?.view;
+
+    for (const message of displayMessages.value) {
+        const container = messageRefs.get(message.id);
+        if (!container) {
+            continue;
+        }
         container.empty();
         await MarkdownRenderer.render(
-                props.plugin.app,
-                historyAnswer.value,
-                container,
-                '/',
-                props.plugin.app.workspace.getLeavesOfType("deepseek-ai-assistant-itemview")[0].view
+            props.plugin.app,
+            message.content || "",
+            container,
+            "/",
+            view
         );
     }
-    // console.log('watch', historyAnswer.value)
-})
+};
 
+const scrollToBottom = () => {
+    const container = messageListRef.value;
+    if (!container) {
+        return;
+    }
+    container.scrollTop = container.scrollHeight;
+};
 
-const handleCommand = (command: string | number | object) => {
-  new Notice(`click on item ${command}`)
-}
+watch(inputContent, async () => {
+    await nextTick();
+    adjustHeight();
+});
+
+watch(
+    availableModels,
+    (models) => {
+        const defaultModel = props.plugin.settings.DEFAULT_MODEL;
+        if (chatModel.value && models.includes(chatModel.value)) {
+            return;
+        }
+        if (defaultModel && models.includes(defaultModel)) {
+            chatModel.value = defaultModel;
+            return;
+        }
+        chatModel.value = models[0];
+    },
+    { immediate: true }
+);
+
+watch(
+    currentConversation,
+    (conversation) => {
+        if (!conversation?.model) {
+            return;
+        }
+        if (availableModels.value.includes(conversation.model)) {
+            chatModel.value = conversation.model;
+        }
+    },
+    { immediate: true }
+);
+
+watch(chatModel, async (value) => {
+    if (!value) {
+        return;
+    }
+    if (props.plugin.settings.DEFAULT_MODEL === value) {
+        return;
+    }
+    props.plugin.settings.DEFAULT_MODEL = value;
+    const options = Array.isArray(props.plugin.settings.MODEL_OPTIONS)
+        ? props.plugin.settings.MODEL_OPTIONS
+        : [];
+    if (!options.includes(value)) {
+        props.plugin.settings.MODEL_OPTIONS = [value, ...options];
+    }
+    await props.plugin.saveSettings();
+});
+
+watch(
+    displayMessages,
+    async () => {
+        await nextTick();
+        await renderMessages();
+        scrollToBottom();
+    },
+    { deep: true, immediate: true }
+);
 
 const submit = async () => {
-    const container = answerContainerRef.value;
-    if(container) container.empty();
-    isLoading.value = true;  // 开始加载
+    const content = inputContent.value.trim();
+    if (!content || isLoading.value) {
+        return;
+    }
+
+    isLoading.value = true;
     isThinking.value = true;
-    hasResponse.value = false;
+    streamingAssistantText.value = "";
 
     try {
         const openai = new OpenAI({
@@ -148,81 +281,58 @@ const submit = async () => {
             dangerouslyAllowBrowser: true
         });
 
-        let fullResponse = '';
+        await promptStore.addUserMessage(content, chatModel.value);
+        inputContent.value = "";
+
+        const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+            { role: "system", content: systemPrompt.value }
+        ];
+
+        const recentMessages = [...promptStore.currentMessages].slice(-20);
+        for (const message of recentMessages) {
+            messages.push({
+                role: message.role === "user" ? "user" : "assistant",
+                content: message.content
+            });
+        }
+
         const completion = await openai.chat.completions.create({
-            messages: [
-                {role: "system", content:'你是一个AI助手，请根据用户的问题给出回答'},
-                {role: "user", content: inputContent.value}
-            ],
+            messages,
             model: chatModel.value,
             stream: true
         });
 
-        // 处理流式响应
+        let fullResponse = "";
+
         for await (const chunk of completion) {
-            const content = chunk.choices[0]?.delta?.content || '';
-            if (content) {
-                if (isThinking.value) {
-                    isThinking.value = false;
-                }
-                fullResponse += content;
-                // 实时渲染 Markdown 内容
-                if(container) {
-                    container.empty();
-                    await MarkdownRenderer.render(
-                        props.plugin.app,
-                        fullResponse,
-                        container,
-                        '/',
-                        props.plugin.app.workspace.getLeavesOfType("deepseek-ai-assistant-itemview")[0].view
-                    );
-                }
+            const chunkContent = chunk.choices[0]?.delta?.content || "";
+            if (!chunkContent) {
+                continue;
             }
+            if (isThinking.value) {
+                isThinking.value = false;
+            }
+            fullResponse += chunkContent;
+            streamingAssistantText.value = fullResponse;
         }
 
-        if (fullResponse) {
-            // 保存对话到 store
-            promptStore.addPrompt(inputContent.value, fullResponse)
-            // 清空输入框
-            inputContent.value = '';
-            hasResponse.value = true;
+        if (fullResponse.trim()) {
+            await promptStore.addAssistantMessage(fullResponse);
         }
+        streamingAssistantText.value = "";
     } catch (error: any) {
         isThinking.value = false;
-        // console.log('---Error:', error);
-        if(container) {
-            await MarkdownRenderer.render(
-                props.plugin.app,
-                error.message,
-                container,
-                '/',
-                props.plugin.app.workspace.getLeavesOfType("deepseek-ai-assistant-itemview")[0].view
-            );
-        }
+        streamingAssistantText.value = error?.message || "Request failed.";
     } finally {
-        isLoading.value = false;  // 结束加载
+        isLoading.value = false;
         isThinking.value = false;
     }
-}
+};
 </script>
 
 <style scoped>
-/* 确保 Markdown 内容也可以选择 */
-.answer-field :deep(*) {
+.message-content :deep(*) {
     user-select: text;
     -webkit-user-select: text;
 }
-
-/* 滚动条样式 */
-.answer-field::-webkit-scrollbar {
-    width: 6px;
-}
-.answer-field::-webkit-scrollbar-track {
-    background: transparent;
-}
-.answer-field::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.1);
-    border-radius: 3px;
-}
 </style>
-
