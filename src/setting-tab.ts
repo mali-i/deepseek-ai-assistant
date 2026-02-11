@@ -37,5 +37,64 @@ export class DeepSeekAIAssistant_SettingTab extends PluginSettingTab {
                     this.plugin.settings.API_URL = value;
                     await this.plugin.saveSettings();
                 }));
+
+        new Setting(containerEl)
+            .setName("System prompt")
+            .setDesc("Used as the system role content for every chat request.")
+            .addTextArea((text) =>
+                text
+                    .setPlaceholder("You are an AI assistant...")
+                    .setValue(this.plugin.settings.SYSTEM_PROMPT)
+                    .onChange(async (value) => {
+                        this.plugin.settings.SYSTEM_PROMPT = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(containerEl)
+            .setName("Default model")
+            .setDesc("Model used when starting a new conversation.")
+            .addText((text) =>
+                text
+                    .setPlaceholder("deepseek-reasoner")
+                    .setValue(this.plugin.settings.DEFAULT_MODEL)
+                    .onChange(async (value) => {
+                        const next = value.trim();
+                        if (!next) {
+                            return;
+                        }
+                        this.plugin.settings.DEFAULT_MODEL = next;
+                        if (!this.plugin.settings.MODEL_OPTIONS.includes(next)) {
+                            this.plugin.settings.MODEL_OPTIONS = [next, ...this.plugin.settings.MODEL_OPTIONS];
+                        }
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(containerEl)
+            .setName("Model options")
+            .setDesc("Comma or newline separated model names shown in selector.")
+            .addTextArea((text) =>
+                text
+                    .setPlaceholder("deepseek-reasoner, deepseek-chat")
+                    .setValue((this.plugin.settings.MODEL_OPTIONS || []).join(", "))
+                    .onChange(async (value) => {
+                        const models = parseModelOptions(value);
+                        if (models.length === 0) {
+                            return;
+                        }
+                        this.plugin.settings.MODEL_OPTIONS = models;
+                        if (!models.includes(this.plugin.settings.DEFAULT_MODEL)) {
+                            this.plugin.settings.DEFAULT_MODEL = models[0];
+                        }
+                        await this.plugin.saveSettings();
+                    })
+            );
     }
 }
+        const parseModelOptions = (value: string): string[] => {
+            return value
+                .split(/[,\n]/)
+                .map((item) => item.trim())
+                .filter((item, index, array) => !!item && array.indexOf(item) === index);
+        };
