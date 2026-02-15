@@ -34,11 +34,15 @@ DeepSeek AI Assistant 是一款辅助 Obsidian 用户进行 Prompt 管理与知�
 #### 基础对话支持
 集成 DeepSeek V3 与 R1 模型，支持流式输出，提供基础的 Markdown 渲染，方便将内容复制到笔记中。
 
+#### 支持自定义大模型服务商
+兼容 OpenAI 格式的 API，您可以配置任意支持 OpenAI 格式的大模型服务商（如 DeepSeek, OpenAI, Claude via proxy 等），自定义 Base URL 和模型名称。
+
 ### 配置和使用说明
-1. 在插件设置中填入您的 [DeepSeek API Key](https://platform.deepseek.com)。
-2. 确保您的账户中有足够的 Token 余额。
-3. 通过侧边栏图标或命令面板 "Open deepseek-ai-assistant" 打开界面。
-4. API KEY 以及所有数据保存在您的本地 `data.json` 文件中。
+1. 在插件设置中选择服务商（默认 DeepSeek 或 Custom）。
+2. 填入您的 API Key。如果是自定义服务商，还需填写 Base URL 和 Model ID。
+3. 确保您的账户中有足够的 Token 余额。
+4. 通过侧边栏图标或命令面板 "Open deepseek-ai-assistant" 打开界面。
+5. API KEY 以及所有数据保存在您的本地 `data.json` 文件中。
 
 ### 支持与赞助
 如果您觉得这个插件对您的学习有所帮助，欢迎请作者喝杯咖啡！
@@ -78,11 +82,15 @@ Supports generating dedicated links for each prompt. You can save links in your 
 
 #### Inquiry Statistics
 Includes a heatmap feature to display recent inquiry frequency. This serves as a lightweight reference for your learning trajectory, helping you understand changes in your focus.
-
-#### Basic Chat Support
-Integrates DeepSeek V3 and R1 models, supporting streaming output and providing basic Markdown rendering for easy copying of content into notes.
+# Custom LLM Provider Support
+Compatible with OpenAI format APIs. You can configure any LLM provider that supports the OpenAI format (e.g., DeepSeek, OpenAI, etc.) by customizing the Base URL and Model ID.
 
 ### Configuration
+1. Select the provider in the plugin settings (default DeepSeek or Custom).
+2. Enter your API Key. If using a custom provider, also enter the Base URL and Model ID.
+3. Ensure your account has sufficient token balance.
+4. Open the interface via the ribbon icon or the command palette ("Open deepseek-ai-assistant").
+5## Configuration
 1. Enter your [DeepSeek API Key](https://platform.deepseek.com) in the plugin settings.
 2. Ensure your account has sufficient token balance.
 3. Open the interface via the ribbon icon or the command palette ("Open deepseek-ai-assistant").
