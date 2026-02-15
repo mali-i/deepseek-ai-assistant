@@ -22,6 +22,7 @@ export interface ModelConfig {
     modelId: string;     // 模型ID (如: "gpt-4", "deepseek-chat")
     apiKey: string;      // 专用 Key
     apiUrl: string;      // 专用 URL
+    providerUrl?: string;// 服务商控制台URL (可选)
 }
 
 export interface SettingsInterfaceType{
@@ -41,14 +42,16 @@ export const DEFAULT_SETTINGS: SettingsInterfaceType = {
             name: 'DeepSeek R1',
             modelId: 'deepseek-reasoner',
             apiKey: '',
-            apiUrl: 'https://api.deepseek.com'
+            apiUrl: 'https://api.deepseek.com',
+            providerUrl: 'https://platform.deepseek.com/'
         },
         {
             id: 'default-deepseek-v3',
             name: 'DeepSeek V3',
             modelId: 'deepseek-chat',
             apiKey: '',
-            apiUrl: 'https://api.deepseek.com'
+            apiUrl: 'https://api.deepseek.com',
+            providerUrl: 'https://platform.deepseek.com/'
         }
     ],
     promptStats: {}

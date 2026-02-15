@@ -86,10 +86,13 @@ const props = defineProps<{
     plugin: any
 }>();
 
-const availableModels = ref(props.plugin.settings?.models || DEFAULT_SETTINGS.models);
+const availableModels = ref<any[]>([]);
 
 const updateModels = () => {
-    availableModels.value = props.plugin.settings?.models || DEFAULT_SETTINGS.models;
+    // Create a shallow copy to ensure Vue detects the change if the array reference is the same but contents changed
+    const models = props.plugin.settings?.models || DEFAULT_SETTINGS.models;
+    availableModels.value = [...models];
+    
     // ensure current model is valid
     const exists = availableModels.value.some((m:any) => m.id === chatModel.value);
     if (!exists && availableModels.value.length > 0) {
@@ -98,6 +101,7 @@ const updateModels = () => {
 }
 
 onMounted(() => {
+    updateModels(); // Initialize
     if (props.plugin.registerSettingsListener) {
         props.plugin.registerSettingsListener(updateModels);
     }

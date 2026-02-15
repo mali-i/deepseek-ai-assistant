@@ -26,7 +26,18 @@ export class DeepSeekAIAssistant_SettingTab extends PluginSettingTab {
         models.forEach((model, index) => {
             const setting = new Setting(containerEl)
                 .setName(model.name)
-                .setDesc(`${model.modelId} · ${model.apiUrl}`)
+                .setDesc(document.createDocumentFragment());
+
+            // Custom Description with Link
+            const desc = setting.descEl;
+            desc.createSpan({ text: model.modelId });
+            
+            if (model.providerUrl) {
+                desc.createSpan({ text: ' · ' });
+                desc.createEl('a', { text: 'Dashboard', href: model.providerUrl }).setAttribute('target', '_blank');
+            }
+
+            setting
                 .addButton(button => button
                     .setIcon('pencil')
                     .setTooltip('Edit Model')
@@ -63,7 +74,8 @@ export class DeepSeekAIAssistant_SettingTab extends PluginSettingTab {
                         name: 'New Model',
                         modelId: '',
                         apiKey: '',
-                        apiUrl: 'https://api.openai.com/v1' // Common default
+                        apiUrl: 'https://api.openai.com/v1', // Common default
+                        providerUrl: ''
                     };
                     new ModelEditModal(this.plugin.app, newModelTemplate, async (newModel) => {
                         if (!this.plugin.settings.models) this.plugin.settings.models = [];
@@ -72,21 +84,6 @@ export class DeepSeekAIAssistant_SettingTab extends PluginSettingTab {
                         this.display();
                     }).open();
                 }));
-
-        // --- Reset ---
-        containerEl.createEl('h3', { text: 'Reset', cls: 'settings-header-danger' });
-        new Setting(containerEl)
-        .setName('Reset All Models')
-        .setDesc('Restore default DeepSeek configurations. This will delete your custom settings.')
-        .addButton(button => button
-            .setButtonText('Reset Defaults')
-            .onClick(async () => {
-                if(confirm('This will wipe all your custom model configurations. Continue?')) {
-                    this.plugin.settings.models = JSON.parse(JSON.stringify(DEFAULT_SETTINGS.models));
-                    await this.plugin.saveSettings();
-                    this.display();
-                }
-            }));
     }
 }
 
@@ -103,7 +100,8 @@ class ModelEditModal extends Modal {
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: 'Edit Model Configuration' });
+        
+        this.titleEl.setText('Edit Model Configuration');
 
         const formDiv = contentEl.createDiv({ cls: 'model-edit-form' });
         
@@ -143,6 +141,15 @@ class ModelEditModal extends Modal {
                 .setValue(this.model.apiKey)
                 .onChange(value => { this.model.apiKey = value; })
             });
+
+        // Provider URL (Optional)
+        new Setting(formDiv)
+            .setName('Provider Dashboard URL (Optional)')
+            .setDesc('Link to the provider\'s console for managing keys/billing.')
+            .addText(text => text
+                .setPlaceholder('https://platform.openai.com/')
+                .setValue(this.model.providerUrl || '') // Handle undefined
+                .onChange(value => { this.model.providerUrl = value; }));
         
         // Buttons
         const buttonDiv = contentEl.createDiv({ cls: 'model-edit-buttons' });
