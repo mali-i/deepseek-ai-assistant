@@ -136,9 +136,7 @@ class ModelEditModal extends Modal {
             .setDesc('Your secret API Key.')
             .addText(text => {
                 text.inputEl.type = 'password';
-                text
-                .setPlaceholder('sk-...')
-                .setValue(this.model.apiKey)
+                text.setValue(this.model.apiKey)
                 .onChange(value => { this.model.apiKey = value; })
             });
 

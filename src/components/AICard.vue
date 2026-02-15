@@ -130,11 +130,11 @@ const historyAnswer = computed(()=>{
 const adjustHeight = () => {
     const textarea = textareaRef.value;
     if (textarea) {
-        // 使用 requestAnimationFrame 避免 ResizeObserver loop 错误
-        window.requestAnimationFrame(() => {
-            textarea.style.height = 'auto';
+        // Use setTimeout to defer resize and avoid ResizeObserver loop errors
+        setTimeout(() => {
+            textarea.style.height = 'auto'; 
             textarea.style.height = textarea.scrollHeight + 'px';
-        });
+        }, 0);
     }
 }
 
@@ -176,6 +176,11 @@ const submit = async () => {
         
         if (!selectedModelConfig) {
             throw new Error('No model configuration found.');
+        }
+
+        if (!selectedModelConfig.apiKey) {
+            new Notice('API Key is missing for the selected model. Please configure it in the settings.');
+            throw new Error('API Key is missing. Please configure it in the settings.');
         }
 
         const openai = new OpenAI({
@@ -226,10 +231,20 @@ const submit = async () => {
     } catch (error: any) {
         isThinking.value = false;
         // console.log('---Error:', error);
+        
+        let displayMessage = error.message;
+        if (error.status === 401) {
+            displayMessage = "**API Error 401 (Unauthorized):**\nThe API Key provided is invalid, expired, or missing. Please check your settings and ensure the correct API Key is entered.";
+            new Notice("DeepSeek API Error: Invalid API Key (401)");
+        } else if (error.status === 429) {
+             displayMessage = "**API Error 429 (Too Many Requests):**\nYou have exceeded your rate limit or quota. Please check your API provider usage.";
+             new Notice("DeepSeek API Error: Rate Limit Exceeded (429)");
+        }
+        
         if(container) {
             await MarkdownRenderer.render(
                 props.plugin.app,
-                error.message,
+                displayMessage,
                 container,
                 '/',
                 props.plugin.app.workspace.getLeavesOfType("deepseek-ai-assistant-itemview")[0].view
