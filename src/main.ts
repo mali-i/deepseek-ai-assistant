@@ -8,6 +8,15 @@ export default class Plugin_Deepseek_AI_Assistant extends Plugin {
     // private vueApp: ReturnType<typeof createApp> | null = null; // 创建vue应用实例
 
     settings:SettingsInterfaceType = DEFAULT_SETTINGS;
+    private settingsListeners: (() => void)[] = [];
+
+    registerSettingsListener(listener: () => void) {
+        this.settingsListeners.push(listener);
+    }
+
+    unregisterSettingsListener(listener: () => void) {
+        this.settingsListeners = this.settingsListeners.filter(l => l !== listener);
+    }
 
     async onload() {
         await this.loadSettings();
@@ -49,7 +58,7 @@ export default class Plugin_Deepseek_AI_Assistant extends Plugin {
 
     async saveSettings(){
         await this.saveData(this.settings);
-        
+        this.settingsListeners.forEach(l => l());
     }
     async activateView(){
         const {workspace} = this.app;
