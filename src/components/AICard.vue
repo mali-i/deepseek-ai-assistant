@@ -218,7 +218,7 @@ const submit = async () => {
 
         if (fullResponse) {
             // 保存对话到 store
-            promptStore.addPrompt(inputContent.value, fullResponse)
+            promptStore.addPrompt(inputContent.value, fullResponse, selectedModelConfig.id)
             // 清空输入框
             inputContent.value = '';
             hasResponse.value = true;

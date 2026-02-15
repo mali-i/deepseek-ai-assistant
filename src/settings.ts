@@ -3,6 +3,7 @@ interface Conversation {
     id_timestamp: string;
     prompt: string;
     answer: string;
+    model?: string;
   }
   
   // 日期对应的完整数据
