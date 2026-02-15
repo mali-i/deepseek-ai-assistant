@@ -1,7 +1,7 @@
 {
     "id": "deepseek-ai-assistant",
     "name": "deepseek-ai-assistant",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "minAppVersion": "1.1.0",
     "description": "Help you to study with ai-prompting.",
     "author": "algernon",

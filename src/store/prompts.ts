@@ -15,7 +15,7 @@ export const usePromptStore = defineStore('prompts',()=>{
         promptStats.value = { ...pluginStore.plugin.settings.promptStats };
     }
    
-    async function addPrompt(prompt: string, answer:string){
+    async function addPrompt(prompt: string, answer:string, modelName?: string){
         if(!pluginStore.plugin) return;
             // 获取当前日期作为键
         const today = new Date().toISOString().split('T')[0];
@@ -32,7 +32,8 @@ export const usePromptStore = defineStore('prompts',()=>{
         newStats[today].prompt_content.push({
             id_timestamp: Date.now().toString(),
             prompt,
-            answer
+            answer,
+            model: modelName
         });
 
         // 更新响应式数据

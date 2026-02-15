@@ -35,8 +35,9 @@
                                     v-model="chatModel" 
                                     class="appearance-none bg-transparent border-none text-[12px] font-medium text-[var(--text-normal)] cursor-pointer pr-4 focus:outline-none font-sans"
                                 >
-                                    <option value="deepseek-reasoner">Deepseek R1</option>
-                                    <option value="deepseek-chat">Deepseek V3</option>
+                                    <option v-for="model in availableModels" :key="model.id" :value="model.id">
+                                        {{ model.name }}
+                                    </option>
                                 </select>
                                 <div class="absolute right-2.5 pointer-events-none text-[var(--text-muted)]">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -74,22 +75,50 @@
     </div>
 </template>
 <script setup lang="ts">
-import { ref, computed , watch, nextTick} from 'vue';
+import { ref, computed , watch, nextTick, onMounted, onUnmounted} from 'vue';
 import { OpenAI } from 'openai';
 import {MarkdownRenderer, Notice} from 'obsidian';
 import {usePromptStore} from '../store/prompts'
 import ThinkingClue from './ThinkingClue.vue'
+import { DEFAULT_SETTINGS } from '../settings'
 
 const props = defineProps<{
     plugin: any
 }>();
+
+const availableModels = ref<any[]>([]);
+
+const updateModels = () => {
+    // Create a shallow copy to ensure Vue detects the change if the array reference is the same but contents changed
+    const models = props.plugin.settings?.models || DEFAULT_SETTINGS.models;
+    availableModels.value = [...models];
+    
+    // ensure current model is valid
+    const exists = availableModels.value.some((m:any) => m.id === chatModel.value);
+    if (!exists && availableModels.value.length > 0) {
+        chatModel.value = availableModels.value[0].id;
+    }
+}
+
+onMounted(() => {
+    updateModels(); // Initialize
+    if (props.plugin.registerSettingsListener) {
+        props.plugin.registerSettingsListener(updateModels);
+    }
+});
+
+onUnmounted(() => {
+    if (props.plugin.unregisterSettingsListener) {
+        props.plugin.unregisterSettingsListener(updateModels);
+    }
+});
 
 const inputContent = ref('');
 const isLoading = ref(false);
 const isThinking = ref(false);
 const hasResponse = ref(false);
 const promptStore = usePromptStore()
-const chatModel = ref('deepseek-reasoner')
+const chatModel = ref(availableModels.value[0]?.id || 'deepseek-reasoner')
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const answerContainerRef = ref<HTMLElement | null>(null);
 
@@ -142,9 +171,16 @@ const submit = async () => {
     hasResponse.value = false;
 
     try {
+        // Find the configuration for the selected model ID (which is the internal UUID now)
+        const selectedModelConfig = availableModels.value.find((m: any) => m.id === chatModel.value) || availableModels.value[0];
+        
+        if (!selectedModelConfig) {
+            throw new Error('No model configuration found.');
+        }
+
         const openai = new OpenAI({
-            apiKey: props.plugin.settings.API_KEY,
-            baseURL: props.plugin.settings.API_URL,
+            apiKey: selectedModelConfig.apiKey,
+            baseURL: selectedModelConfig.apiUrl,
             dangerouslyAllowBrowser: true
         });
 
@@ -154,7 +190,7 @@ const submit = async () => {
                 {role: "system", content:'你是一个AI助手，请根据用户的问题给出回答'},
                 {role: "user", content: inputContent.value}
             ],
-            model: chatModel.value,
+            model: selectedModelConfig.modelId, // Use the API Model ID from config
             stream: true
         });
 
@@ -182,7 +218,7 @@ const submit = async () => {
 
         if (fullResponse) {
             // 保存对话到 store
-            promptStore.addPrompt(inputContent.value, fullResponse)
+            promptStore.addPrompt(inputContent.value, fullResponse, selectedModelConfig.id)
             // 清空输入框
             inputContent.value = '';
             hasResponse.value = true;

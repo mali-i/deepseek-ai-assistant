@@ -1,11 +1,11 @@
 {
-    "name": "deepseek ai",
-    "version": "beta",
+    "name": "deepseek-ai-assistant",
+    "version": "2.1.0",
     "description": "",
     "keywords": [
         "obsidian-plugin"
     ],
-    "author": "mali",
+    "author": "algernon",
     "license": "MIT",
     "main": "main.js",
     "scripts": {

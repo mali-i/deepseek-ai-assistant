@@ -1,7 +1,6 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
-
+import { App, PluginSettingTab, Setting, Modal, Notice } from "obsidian";
 import Plugin_Deepseek_AI_Assistant from "./main";
-// import SettingTabTemplate from "./components/SettingTabTemplate.vue";
+import { ModelConfig, DEFAULT_SETTINGS } from "./settings";
 
 export class DeepSeekAIAssistant_SettingTab extends PluginSettingTab {
     plugin: Plugin_Deepseek_AI_Assistant;
@@ -12,30 +11,171 @@ export class DeepSeekAIAssistant_SettingTab extends PluginSettingTab {
     display() {
         const { containerEl } = this;
         containerEl.empty();
-        // createApp(SettingTabTemplate,{  // 将 SampleSettingTabPage 组件作为vue应用的根组件
-        //     plugin: this.plugin,   // 将 plugin 实例传递给 Vue 组件
-        // }).mount(containerEl);
-
-
-        new Setting(containerEl)
-            .setName('API key')
-            .setDesc('Get your API key from https://platform.deepseek.com')
-            .addText(text => text
-                .setValue(this.plugin.settings.API_KEY)
-                .onChange(async (value) => {
-                    this.plugin.settings.API_KEY = value;
-                    await this.plugin.saveSettings();
-                }));
         
+        containerEl.createEl('h1', { text: 'AI Assistant Models' });
+        containerEl.createEl('p', { text: 'Configure different AI models with their specific settings.', cls: 'setting-item-description' });
+
+        const models = this.plugin.settings.models || [];
+
+        // Check migration (simple check)
+        if (!this.plugin.settings.models && (this.plugin.settings as any).customModels) {
+             // Basic migration logic could go here, but for now we rely on user adding new ones or using defaults
+        }
+
+        // --- Models List ---
+        models.forEach((model, index) => {
+            const setting = new Setting(containerEl)
+                .setName(model.name)
+                .setDesc(document.createDocumentFragment());
+
+            // Custom Description with Link
+            const desc = setting.descEl;
+            desc.createSpan({ text: model.modelId });
+            
+            if (model.providerUrl) {
+                desc.createSpan({ text: ' · ' });
+                desc.createEl('a', { text: 'Dashboard', href: model.providerUrl }).setAttribute('target', '_blank');
+            }
+
+            setting
+                .addButton(button => button
+                    .setIcon('pencil')
+                    .setTooltip('Edit Model')
+                    .onClick(() => {
+                        new ModelEditModal(this.plugin.app, model, async (updatedModel) => {
+                            this.plugin.settings.models[index] = updatedModel;
+                            await this.plugin.saveSettings();
+                            this.display();
+                        }).open();
+                    }))
+                .addButton(button => button
+                    .setIcon('trash')
+                    .setTooltip('Remove Model')
+                    .setWarning()
+                    .onClick(async () => {
+                        if(confirm(`Are you sure you want to delete "${model.name}"?`)){
+                            this.plugin.settings.models.splice(index, 1);
+                            await this.plugin.saveSettings();
+                            this.display(); 
+                        }
+                    }));
+        });
+
+        // --- Add New Model Button ---
         new Setting(containerEl)
-            .setName('API URL')
-            .setDesc('The default API server address does not require modification.')
-            .addText(text => text
-                .setPlaceholder('https://api.openai.com/v1')
-                .setValue(this.plugin.settings.API_URL)
-                .onChange(async (value) => {
-                    this.plugin.settings.API_URL = value;
-                    await this.plugin.saveSettings();
+            .setName('Add New Model')
+            .setDesc('Add a new configuration for an AI model.')
+            .addButton(button => button
+                .setButtonText('Add Model')
+                .setCta()
+                .onClick(() => {
+                    const newModelTemplate: ModelConfig = {
+                        id: crypto.randomUUID(),
+                        name: 'New Model',
+                        modelId: '',
+                        apiKey: '',
+                        apiUrl: 'https://api.openai.com/v1', // Common default
+                        providerUrl: ''
+                    };
+                    new ModelEditModal(this.plugin.app, newModelTemplate, async (newModel) => {
+                        if (!this.plugin.settings.models) this.plugin.settings.models = [];
+                        this.plugin.settings.models.push(newModel);
+                        await this.plugin.saveSettings();
+                        this.display();
+                    }).open();
                 }));
+    }
+}
+
+class ModelEditModal extends Modal {
+    model: ModelConfig;
+    onSubmit: (model: ModelConfig) => void;
+
+    constructor(app: App, model: ModelConfig, onSubmit: (model: ModelConfig) => void) {
+        super(app);
+        this.model = JSON.parse(JSON.stringify(model)); // Deep clone
+        this.onSubmit = onSubmit;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.empty();
+        
+        this.titleEl.setText('Edit Model Configuration');
+
+        const formDiv = contentEl.createDiv({ cls: 'model-edit-form' });
+        
+        // Display Name
+        new Setting(formDiv)
+            .setName('Display Name')
+            .setDesc('Name shown in the chat dropdown.')
+            .addText(text => text
+                .setValue(this.model.name)
+                .onChange(value => { this.model.name = value; }));
+
+        // Model ID
+        new Setting(formDiv)
+            .setName('Model ID')
+            .setDesc('The internal model string used by the API (e.g., deepseek-chat, gpt-4).')
+            .addText(text => text
+                .setValue(this.model.modelId)
+                .onChange(value => { this.model.modelId = value; }));
+
+        // API URL
+        new Setting(formDiv)
+            .setName('API URL')
+            .setDesc('Base URL for the API.')
+            .addText(text => text
+                .setPlaceholder('https://api.deepseek.com')
+                .setValue(this.model.apiUrl)
+                .onChange(value => { this.model.apiUrl = value; }));
+
+        // API Key
+        new Setting(formDiv)
+            .setName('API Key')
+            .setDesc('Your secret API Key.')
+            .addText(text => {
+                text.inputEl.type = 'password';
+                text
+                .setPlaceholder('sk-...')
+                .setValue(this.model.apiKey)
+                .onChange(value => { this.model.apiKey = value; })
+            });
+
+        // Provider URL (Optional)
+        new Setting(formDiv)
+            .setName('Provider Dashboard URL (Optional)')
+            .setDesc('Link to the provider\'s console for managing keys/billing.')
+            .addText(text => text
+                .setPlaceholder('https://platform.openai.com/')
+                .setValue(this.model.providerUrl || '') // Handle undefined
+                .onChange(value => { this.model.providerUrl = value; }));
+        
+        // Buttons
+        const buttonDiv = contentEl.createDiv({ cls: 'model-edit-buttons' });
+        buttonDiv.style.marginTop = '20px';
+        buttonDiv.style.display = 'flex';
+        buttonDiv.style.justifyContent = 'flex-end';
+        buttonDiv.style.gap = '10px';
+
+        const saveBtn = buttonDiv.createEl('button', { text: 'Save', cls: 'mod-cta' });
+        saveBtn.onclick = () => {
+            if(!this.model.name || !this.model.modelId) {
+                new Notice('Name and Model ID are required.');
+                return;
+            }
+            this.onSubmit(this.model);
+            this.close();
+        };
+
+        const cancelBtn = buttonDiv.createEl('button', { text: 'Cancel' });
+        cancelBtn.onclick = () => {
+            this.close();
+        };
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
     }
 }
