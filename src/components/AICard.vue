@@ -53,21 +53,23 @@
                         <div class="border-b border-[var(--apple-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
                             Today conversations
                         </div>
-                        <div class="max-h-64 overflow-y-auto py-1">
+                        <div class="mention-menu-scroll max-h-64 overflow-y-auto overflow-x-auto py-1">
                             <button
                                 v-for="(item, index) in filteredTodayPrompts"
                                 :key="item.id_timestamp"
                                 type="button"
-                                class="flex w-full flex-col gap-1 px-3 py-2 text-left transition-colors"
+                                class="flex w-full min-w-0 flex-col items-start gap-1 px-3 py-2 text-left transition-colors"
                                 :class="index === activeMentionIndex ? 'bg-[var(--background-modifier-hover)]' : 'hover:bg-[var(--background-modifier-hover)]'"
                                 @mousedown.prevent="selectMention(item)"
                             >
-                                <div class="flex items-center justify-between gap-3">
-                                    <span class="truncate text-sm text-[var(--text-normal)]">{{ buildPromptPreview(item.prompt, 80) }}</span>
-                                    <span class="flex-none text-[11px] text-[var(--text-muted)]">{{ formatMentionTime(item.id_timestamp) }}</span>
+                                <div class="flex w-full min-w-0 flex-col items-start gap-1 text-left">
+                                    <span class="block w-full break-words text-sm text-[var(--text-normal)]">{{ buildPromptPreview(item.prompt, 80) }}</span>
                                 </div>
-                                <div class="line-clamp-2 text-xs text-[var(--text-muted)]">{{ item.answer }}</div>
+                                <div class="w-full break-words text-left text-xs text-[var(--text-muted)] line-clamp-2">{{ item.answer }}</div>
                             </button>
+                            <div v-if="!filteredTodayPrompts.length" class="px-3 py-3 text-left text-sm text-[var(--text-muted)] break-words">
+                                {{ emptyMentionText }}
+                            </div>
                         </div>
                     </div>
                     
@@ -223,7 +225,21 @@ const filteredTodayPrompts = computed<PromptReference[]>(() => {
 });
 
 const showMentionMenu = computed(() => {
-    return Boolean(mentionState.value) && filteredTodayPrompts.value.length > 0;
+    return Boolean(mentionState.value);
+});
+
+const emptyMentionText = computed(() => {
+    if (!mentionState.value) {
+        return '';
+    }
+
+    if (!todayPromptItems.value.length) {
+        return 'Today has no history conversations yet.';
+    }
+
+    return mentionState.value.query.trim()
+        ? 'No matching conversations found for the current @ search.'
+        : 'No available conversations can be selected right now.';
 });
 
 const mentionMenuStyle = computed(() => {
@@ -306,14 +322,6 @@ const buildPromptPreview = (text: string, maxLength = 36) => {
         return 'Untitled prompt';
     }
     return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
-};
-
-const formatMentionTime = (timestamp: string) => {
-    const date = new Date(Number(timestamp));
-    if (Number.isNaN(date.getTime())) {
-        return '--:--';
-    }
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
 const clearMentionState = () => {
@@ -638,6 +646,17 @@ const submit = async () => {
 .answer-field::-webkit-scrollbar-thumb {
     background-color: rgba(0, 0, 0, 0.1);
     border-radius: 3px;
+}
+
+.mention-menu-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.mention-menu-scroll::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
 }
 </style>
 
