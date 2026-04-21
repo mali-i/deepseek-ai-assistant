@@ -17,14 +17,65 @@
         <!-- Input Area -->
         <div class="flex-none">
             <div class="w-full flex flex-col gap-3">
-                <div class="relative w-full bg-[var(--background-primary)] rounded-xl shadow-sm border border-[var(--apple-border)] transition-all duration-300 focus-within:ring-2 focus-within:ring-apple-blue/20 focus-within:border-apple-blue hover:shadow-md">
+                <!-- 外层输入容器边框（会把已选标签和 textarea 一起框进去） -->
+                <div class="relative w-full rounded-xl bg-transparent transition-all duration-300">
+                    <!-- 已选历史上下文标签 -->
+                    <div v-if="selectedReferences.length" class="flex flex-wrap gap-2 px-4 pt-4 pb-1">
+                        <!-- 单条历史对话 已选标签 -->
+                        <button
+                            v-for="item in selectedReferences"
+                            :key="item.id_timestamp"
+                            class="max-w-full inline-flex items-center gap-2 border border-[var(--apple-border)] bg-[var(--background-primary)] px-3 py-1 text-xs text-[var(--text-normal)] transition-colors hover:border-apple-blue"
+                            @click="removeReference(item.id_timestamp)"
+                            type="button"
+                            :title="item.prompt"
+                        >
+                            <span class="truncate max-w-[280px]">@ {{ buildPromptPreview(item.prompt) }}</span>
+                            <span class="text-[var(--text-muted)]">×</span>
+                        </button>
+                    </div>
+
                     <textarea 
                         ref="textareaRef"
-                        class="w-full p-4 pb-14 border-none rounded-xl resize-none text-[15px] leading-relaxed bg-transparent text-[var(--text-normal)] min-h-[120px] max-h-[250px] overflow-y-auto font-sans outline-none placeholder:text-[var(--text-muted)]" 
+                        class="w-full p-4 pb-14 border-none rounded-xl resize-none text-[15px] leading-relaxed bg-[var(--background-primary)] text-[var(--text-normal)] min-h-[120px] max-h-[250px] overflow-y-auto font-sans outline-none placeholder:text-[var(--text-muted)]" 
                         v-model="inputContent" 
-                        placeholder="Ask anything..."
+                        placeholder="Ask anything...Use @ to reference past conversations from today as context for this session."
                         @input="adjustHeight"
+                        @click="handleCaretChange"
+                        @keyup="handleCaretChange"
+                        @keydown="handleMentionKeydown"
+                        @scroll="handleCaretChange"
                     ></textarea>
+
+                    <!-- 历史上下文弹层 -->
+                    <div
+                        v-if="showMentionMenu"
+                        ref="mentionMenuRef"
+                        class="absolute z-20 overflow-hidden rounded-xl border border-[var(--apple-border)] bg-[var(--background-primary)] shadow-xl"
+                        :style="mentionMenuStyle"
+                    >
+                        <div class="border-b border-[var(--apple-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
+                            Today conversations
+                        </div>
+                        <div class="mention-menu-scroll max-h-64 overflow-y-auto overflow-x-auto py-1">
+                            <button
+                                v-for="(item, index) in filteredTodayPrompts"
+                                :key="item.id_timestamp"
+                                type="button"
+                                class="flex w-full min-w-0 flex-col items-start gap-1 px-3 py-2 text-left transition-colors"
+                                :class="index === activeMentionIndex ? 'bg-[var(--background-modifier-hover)]' : 'hover:bg-[var(--background-modifier-hover)]'"
+                                @mousedown.prevent="selectMention(item)"
+                            >
+                                <div class="flex w-full min-w-0 flex-col items-start gap-1 text-left">
+                                    <span class="block w-full break-words text-sm text-[var(--text-normal)]">{{ buildPromptPreview(item.prompt, 80) }}</span>
+                                </div>
+                                <div class="w-full break-words text-left text-xs text-[var(--text-muted)] line-clamp-2">{{ item.answer }}</div>
+                            </button>
+                            <div v-if="!filteredTodayPrompts.length" class="px-3 py-3 text-left text-sm text-[var(--text-muted)] break-words">
+                                {{ emptyMentionText }}
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- Controls Bar -->
                     <div class="absolute bottom-3 right-3 left-3 flex justify-between items-center">
@@ -82,6 +133,25 @@ import {usePromptStore} from '../store/prompts'
 import ThinkingClue from './ThinkingClue.vue'
 import { DEFAULT_SETTINGS } from '../settings'
 
+interface PromptReference {
+    id_timestamp: string;
+    prompt: string;
+    answer: string;
+    model?: string;
+}
+
+interface MentionState {
+    query: string;
+    start: number;
+    end: number;
+}
+
+interface MentionMenuPosition {
+    top: number;
+    left: number;
+    maxWidth: number;
+}
+
 const props = defineProps<{
     plugin: any
 }>();
@@ -121,11 +191,80 @@ const promptStore = usePromptStore()
 const chatModel = ref(availableModels.value[0]?.id || 'deepseek-reasoner')
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const answerContainerRef = ref<HTMLElement | null>(null);
+const mentionMenuRef = ref<HTMLElement | null>(null);
+const selectedReferences = ref<PromptReference[]>([]);
+const mentionState = ref<MentionState | null>(null);
+const activeMentionIndex = ref(0);
+const mentionMenuPosition = ref<MentionMenuPosition | null>(null);
 
 const historyItem = computed(() => promptStore.historyCard)
 const historyAnswer = computed(()=>{
     return historyItem.value?.answer || ''
 })
+
+const todayPromptItems = computed<PromptReference[]>(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const promptStats = promptStore.promptStats;
+    const items = promptStats?.[today]?.prompt_content || [];
+    return [...items].sort((left: PromptReference, right: PromptReference) => Number(right.id_timestamp) - Number(left.id_timestamp));
+});
+
+const filteredTodayPrompts = computed<PromptReference[]>(() => {
+    if (!mentionState.value) {
+        return [];
+    }
+
+    const query = mentionState.value.query.trim().toLowerCase();
+    return todayPromptItems.value.filter((item) => {
+        if (selectedReferences.value.some((selected) => selected.id_timestamp === item.id_timestamp)) {
+            return false;
+        }
+
+        if (!query) {
+            return true;
+        }
+
+        return item.prompt.toLowerCase().includes(query) || item.answer.toLowerCase().includes(query);
+    });
+});
+
+const showMentionMenu = computed(() => {
+    return Boolean(mentionState.value);
+});
+
+const emptyMentionText = computed(() => {
+    if (!mentionState.value) {
+        return '';
+    }
+
+    if (!todayPromptItems.value.length) {
+        return 'Today has no history conversations yet.';
+    }
+
+    return mentionState.value.query.trim()
+        ? 'No matching history conversations found for the current @ search.'
+        : 'No remaining history conversations are available to be selected.';
+});
+
+const mentionMenuStyle = computed(() => {
+    if (!mentionMenuPosition.value) {
+        return { 
+            left: '16px',
+            top: '0px',
+            width: '360px',
+            maxWidth: 'calc(100% - 32px)',
+            transform: 'translateY(calc(-100% - 4px))',
+        };
+    }
+    // 返回弹层位置的css样式对象
+    return {
+        left: `${mentionMenuPosition.value.left}px`,
+        top: `${mentionMenuPosition.value.top}px`,
+        width: '360px',
+        maxWidth: `${mentionMenuPosition.value.maxWidth}px`,
+        transform: 'translateY(calc(-100% - 4px))',
+    };
+});
 
 const adjustHeight = () => {
     const textarea = textareaRef.value;
@@ -140,6 +279,7 @@ const adjustHeight = () => {
 
 watch(inputContent, () => {
     nextTick(adjustHeight);
+    nextTick(updateMentionState);
 });
 answerContainerRef.value;
 watch(historyAnswer,async ()=>{
@@ -158,6 +298,236 @@ watch(historyAnswer,async ()=>{
     // console.log('watch', historyAnswer.value)
 })
 
+watch(filteredTodayPrompts, (items) => {
+    if (!items.length) {
+        activeMentionIndex.value = 0;
+        return;
+    }
+
+    if (activeMentionIndex.value >= items.length) {
+        activeMentionIndex.value = 0;
+    }
+
+    nextTick(updateMentionMenuPosition);
+});
+
+watch(showMentionMenu, (visible) => {
+    if (!visible) {
+        mentionMenuPosition.value = null;
+        return;
+    }
+
+    nextTick(updateMentionMenuPosition);
+});
+
+const buildPromptPreview = (text: string, maxLength = 36) => {
+    const normalized = text.replace(/\s+/g, ' ').trim();
+    if (!normalized) {
+        return 'Untitled prompt';
+    }
+    return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
+};
+
+const clearMentionState = () => {
+    mentionState.value = null;
+    activeMentionIndex.value = 0;
+    mentionMenuPosition.value = null;
+};
+
+const getTextareaCaretCoordinates = (textarea: HTMLTextAreaElement, position: number) => {
+    const computedStyle = window.getComputedStyle(textarea);
+    const mirror = document.createElement('div');
+    const propertiesToCopy = [
+        'boxSizing',
+        'width',
+        'height',
+        'overflowX',
+        'overflowY',
+        'borderTopWidth',
+        'borderRightWidth',
+        'borderBottomWidth',
+        'borderLeftWidth',
+        'paddingTop',
+        'paddingRight',
+        'paddingBottom',
+        'paddingLeft',
+        'fontStyle',
+        'fontVariant',
+        'fontWeight',
+        'fontStretch',
+        'fontSize',
+        'fontSizeAdjust',
+        'lineHeight',
+        'fontFamily',
+        'textAlign',
+        'textTransform',
+        'textIndent',
+        'textDecoration',
+        'letterSpacing',
+        'wordSpacing',
+        'tabSize',
+        'MozTabSize',
+    ] as const;
+
+    mirror.style.position = 'absolute';
+    mirror.style.visibility = 'hidden';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.wordWrap = 'break-word';
+    mirror.style.overflow = 'hidden';
+    mirror.style.top = '0';
+    mirror.style.left = '-9999px';
+
+    propertiesToCopy.forEach((property) => {
+        mirror.style[property as any] = computedStyle[property as any];
+    });
+
+    mirror.textContent = textarea.value.slice(0, position);
+
+    const marker = document.createElement('span');
+    marker.textContent = textarea.value.slice(position) || '.';
+    mirror.appendChild(marker);
+    document.body.appendChild(mirror);
+
+    const coordinates = {
+        left: marker.offsetLeft - textarea.scrollLeft,
+        top: marker.offsetTop - textarea.scrollTop,
+        lineHeight: parseFloat(computedStyle.lineHeight) || parseFloat(computedStyle.fontSize) * 1.4,
+    };
+
+    document.body.removeChild(mirror);
+    return coordinates;
+};
+
+const updateMentionMenuPosition = () => {
+    const textarea = textareaRef.value;
+    if (!textarea || !mentionState.value) {
+        mentionMenuPosition.value = null;
+        return;
+    }
+
+    const container = textarea.parentElement;
+    if (!container) {
+        mentionMenuPosition.value = null;
+        return;
+    }
+
+    const caret = getTextareaCaretCoordinates(textarea, mentionState.value.end);
+    const horizontalPadding = 16;
+    const preferredWidth = 360;
+    const availableWidth = Math.max(240, container.clientWidth - horizontalPadding * 2);
+    const popupWidth = Math.min(preferredWidth, availableWidth);
+    const maxLeft = Math.max(horizontalPadding, container.clientWidth - popupWidth - horizontalPadding);
+    const caretLeft = textarea.offsetLeft + caret.left;
+    const caretTop = textarea.offsetTop + caret.top;
+
+    mentionMenuPosition.value = {
+        left: Math.min(Math.max(caretLeft, horizontalPadding), maxLeft),
+        top: caretTop,
+        maxWidth: availableWidth,
+    };
+};
+
+const updateMentionState = () => {
+    const textarea = textareaRef.value;
+    if (!textarea) {
+        clearMentionState();
+        return;
+    }
+
+    const caretIndex = textarea.selectionStart ?? inputContent.value.length;
+    const contentBeforeCaret = inputContent.value.slice(0, caretIndex);
+    const match = contentBeforeCaret.match(/(^|\s)@([^\s@]*)$/);
+
+    if (!match) {
+        clearMentionState();
+        return;
+    }
+
+    const leadingPart = match[1] || '';
+    const tokenStart = contentBeforeCaret.length - match[0].length + leadingPart.length;
+
+    mentionState.value = {
+        query: match[2] || '',
+        start: tokenStart,
+        end: caretIndex,
+    };
+
+    nextTick(updateMentionMenuPosition);
+};
+
+const handleCaretChange = () => {
+    updateMentionState();
+};
+
+const selectMention = async (item: PromptReference) => {
+    if (!mentionState.value) {
+        return;
+    }
+
+    if (!selectedReferences.value.some((selected) => selected.id_timestamp === item.id_timestamp)) {
+        selectedReferences.value = [...selectedReferences.value, item];
+    }
+
+    const before = inputContent.value.slice(0, mentionState.value.start);
+    const after = inputContent.value.slice(mentionState.value.end);
+    const needsSpace = after.length > 0 && !after.startsWith(' ') && !before.endsWith(' ') ? ' ' : '';
+    inputContent.value = `${before}${needsSpace}${after}`;
+    clearMentionState();
+
+    await nextTick();
+
+    const nextCaret = before.length + needsSpace.length;
+    textareaRef.value?.focus();
+    textareaRef.value?.setSelectionRange(nextCaret, nextCaret);
+    updateMentionMenuPosition();
+};
+
+const removeReference = (id: string) => {
+    selectedReferences.value = selectedReferences.value.filter((item) => item.id_timestamp !== id);
+};
+
+const handleMentionKeydown = (event: KeyboardEvent) => {
+    if (!showMentionMenu.value) {
+        return;
+    }
+
+    if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        activeMentionIndex.value = (activeMentionIndex.value + 1) % filteredTodayPrompts.value.length;
+        return;
+    }
+
+    if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        activeMentionIndex.value = (activeMentionIndex.value - 1 + filteredTodayPrompts.value.length) % filteredTodayPrompts.value.length;
+        return;
+    }
+
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        const activeItem = filteredTodayPrompts.value[activeMentionIndex.value];
+        if (activeItem) {
+            void selectMention(activeItem);
+        }
+        return;
+    }
+
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        clearMentionState();
+    }
+};
+
+const buildContextMessages = () => {
+    const orderedReferences = [...selectedReferences.value].sort((left, right) => Number(left.id_timestamp) - Number(right.id_timestamp));
+
+    return orderedReferences.flatMap((item) => {
+        return [
+            { role: 'user' as const, content: item.prompt },
+            { role: 'assistant' as const, content: item.answer },
+        ];
+    });
+};
 
 const handleCommand = (command: string | number | object) => {
   new Notice(`click on item ${command}`)
@@ -190,11 +560,15 @@ const submit = async () => {
         });
 
         let fullResponse = '';
+        const messages = [
+            {role: 'system' as const, content:'你是一个AI助手，请根据用户的问题给出回答'},
+            ...buildContextMessages(),
+            {role: 'user' as const, content: inputContent.value}
+        ];
+
+        // openAI的Chat Completions API，定义了现代聊天式大模型交互的基本格式
         const completion = await openai.chat.completions.create({
-            messages: [
-                {role: "system", content:'你是一个AI助手，请根据用户的问题给出回答'},
-                {role: "user", content: inputContent.value}
-            ],
+            messages,
             model: selectedModelConfig.modelId, // Use the API Model ID from config
             stream: true
         });
@@ -226,6 +600,8 @@ const submit = async () => {
             promptStore.addPrompt(inputContent.value, fullResponse, selectedModelConfig.id)
             // 清空输入框
             inputContent.value = '';
+            selectedReferences.value = [];
+            clearMentionState();
             hasResponse.value = true;
         }
     } catch (error: any) {
@@ -274,6 +650,17 @@ const submit = async () => {
 .answer-field::-webkit-scrollbar-thumb {
     background-color: rgba(0, 0, 0, 0.1);
     border-radius: 3px;
+}
+
+.mention-menu-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.mention-menu-scroll::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
 }
 </style>
 
