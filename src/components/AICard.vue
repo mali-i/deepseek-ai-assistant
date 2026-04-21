@@ -41,11 +41,14 @@
                         @click="handleCaretChange"
                         @keyup="handleCaretChange"
                         @keydown="handleMentionKeydown"
+                        @scroll="handleCaretChange"
                     ></textarea>
 
                     <div
                         v-if="showMentionMenu"
-                        class="absolute left-4 right-4 bottom-16 z-20 overflow-hidden rounded-xl border border-[var(--apple-border)] bg-[var(--background-primary)] shadow-xl"
+                        ref="mentionMenuRef"
+                        class="absolute z-20 overflow-hidden rounded-xl border border-[var(--apple-border)] bg-[var(--background-primary)] shadow-xl"
+                        :style="mentionMenuStyle"
                     >
                         <div class="border-b border-[var(--apple-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
                             Today conversations
@@ -137,6 +140,12 @@ interface MentionState {
     end: number;
 }
 
+interface MentionMenuPosition {
+    top: number;
+    left: number;
+    maxWidth: number;
+}
+
 const props = defineProps<{
     plugin: any
 }>();
@@ -176,9 +185,11 @@ const promptStore = usePromptStore()
 const chatModel = ref(availableModels.value[0]?.id || 'deepseek-reasoner')
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const answerContainerRef = ref<HTMLElement | null>(null);
+const mentionMenuRef = ref<HTMLElement | null>(null);
 const selectedReferences = ref<PromptReference[]>([]);
 const mentionState = ref<MentionState | null>(null);
 const activeMentionIndex = ref(0);
+const mentionMenuPosition = ref<MentionMenuPosition | null>(null);
 
 const historyItem = computed(() => promptStore.historyCard)
 const historyAnswer = computed(()=>{
@@ -213,6 +224,26 @@ const filteredTodayPrompts = computed<PromptReference[]>(() => {
 
 const showMentionMenu = computed(() => {
     return Boolean(mentionState.value) && filteredTodayPrompts.value.length > 0;
+});
+
+const mentionMenuStyle = computed(() => {
+    if (!mentionMenuPosition.value) {
+        return { 
+            left: '16px',
+            top: '0px',
+            width: '360px',
+            maxWidth: 'calc(100% - 32px)',
+            transform: 'translateY(calc(-100% - 4px))',
+        };
+    }
+    // 返回弹层位置的css样式对象
+    return {
+        left: `${mentionMenuPosition.value.left}px`,
+        top: `${mentionMenuPosition.value.top}px`,
+        width: '360px',
+        maxWidth: `${mentionMenuPosition.value.maxWidth}px`,
+        transform: 'translateY(calc(-100% - 4px))',
+    };
 });
 
 const adjustHeight = () => {
@@ -256,6 +287,17 @@ watch(filteredTodayPrompts, (items) => {
     if (activeMentionIndex.value >= items.length) {
         activeMentionIndex.value = 0;
     }
+
+    nextTick(updateMentionMenuPosition);
+});
+
+watch(showMentionMenu, (visible) => {
+    if (!visible) {
+        mentionMenuPosition.value = null;
+        return;
+    }
+
+    nextTick(updateMentionMenuPosition);
 });
 
 const buildPromptPreview = (text: string, maxLength = 36) => {
@@ -277,6 +319,100 @@ const formatMentionTime = (timestamp: string) => {
 const clearMentionState = () => {
     mentionState.value = null;
     activeMentionIndex.value = 0;
+    mentionMenuPosition.value = null;
+};
+
+const getTextareaCaretCoordinates = (textarea: HTMLTextAreaElement, position: number) => {
+    const computedStyle = window.getComputedStyle(textarea);
+    const mirror = document.createElement('div');
+    const propertiesToCopy = [
+        'boxSizing',
+        'width',
+        'height',
+        'overflowX',
+        'overflowY',
+        'borderTopWidth',
+        'borderRightWidth',
+        'borderBottomWidth',
+        'borderLeftWidth',
+        'paddingTop',
+        'paddingRight',
+        'paddingBottom',
+        'paddingLeft',
+        'fontStyle',
+        'fontVariant',
+        'fontWeight',
+        'fontStretch',
+        'fontSize',
+        'fontSizeAdjust',
+        'lineHeight',
+        'fontFamily',
+        'textAlign',
+        'textTransform',
+        'textIndent',
+        'textDecoration',
+        'letterSpacing',
+        'wordSpacing',
+        'tabSize',
+        'MozTabSize',
+    ] as const;
+
+    mirror.style.position = 'absolute';
+    mirror.style.visibility = 'hidden';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.wordWrap = 'break-word';
+    mirror.style.overflow = 'hidden';
+    mirror.style.top = '0';
+    mirror.style.left = '-9999px';
+
+    propertiesToCopy.forEach((property) => {
+        mirror.style[property as any] = computedStyle[property as any];
+    });
+
+    mirror.textContent = textarea.value.slice(0, position);
+
+    const marker = document.createElement('span');
+    marker.textContent = textarea.value.slice(position) || '.';
+    mirror.appendChild(marker);
+    document.body.appendChild(mirror);
+
+    const coordinates = {
+        left: marker.offsetLeft - textarea.scrollLeft,
+        top: marker.offsetTop - textarea.scrollTop,
+        lineHeight: parseFloat(computedStyle.lineHeight) || parseFloat(computedStyle.fontSize) * 1.4,
+    };
+
+    document.body.removeChild(mirror);
+    return coordinates;
+};
+
+const updateMentionMenuPosition = () => {
+    const textarea = textareaRef.value;
+    if (!textarea || !mentionState.value) {
+        mentionMenuPosition.value = null;
+        return;
+    }
+
+    const container = textarea.parentElement;
+    if (!container) {
+        mentionMenuPosition.value = null;
+        return;
+    }
+
+    const caret = getTextareaCaretCoordinates(textarea, mentionState.value.end);
+    const horizontalPadding = 16;
+    const preferredWidth = 360;
+    const availableWidth = Math.max(240, container.clientWidth - horizontalPadding * 2);
+    const popupWidth = Math.min(preferredWidth, availableWidth);
+    const maxLeft = Math.max(horizontalPadding, container.clientWidth - popupWidth - horizontalPadding);
+    const caretLeft = textarea.offsetLeft + caret.left;
+    const caretTop = textarea.offsetTop + caret.top;
+
+    mentionMenuPosition.value = {
+        left: Math.min(Math.max(caretLeft, horizontalPadding), maxLeft),
+        top: caretTop,
+        maxWidth: availableWidth,
+    };
 };
 
 const updateMentionState = () => {
@@ -303,6 +439,8 @@ const updateMentionState = () => {
         start: tokenStart,
         end: caretIndex,
     };
+
+    nextTick(updateMentionMenuPosition);
 };
 
 const handleCaretChange = () => {
@@ -329,6 +467,7 @@ const selectMention = async (item: PromptReference) => {
     const nextCaret = before.length + needsSpace.length;
     textareaRef.value?.focus();
     textareaRef.value?.setSelectionRange(nextCaret, nextCaret);
+    updateMentionMenuPosition();
 };
 
 const removeReference = (id: string) => {
