@@ -17,12 +17,15 @@
         <!-- Input Area -->
         <div class="flex-none">
             <div class="w-full flex flex-col gap-3">
-                <div class="relative w-full bg-[var(--background-primary)] rounded-xl shadow-sm border border-[var(--apple-border)] transition-all duration-300 focus-within:ring-2 focus-within:ring-apple-blue/20 focus-within:border-apple-blue hover:shadow-md">
+                <!-- 外层输入容器边框（会把已选标签和 textarea 一起框进去） -->
+                <div class="relative w-full rounded-xl bg-transparent transition-all duration-300">
+                    <!-- 已选历史上下文标签 -->
                     <div v-if="selectedReferences.length" class="flex flex-wrap gap-2 px-4 pt-4 pb-1">
+                        <!-- 单条历史对话 已选标签 -->
                         <button
                             v-for="item in selectedReferences"
                             :key="item.id_timestamp"
-                            class="max-w-full inline-flex items-center gap-2 rounded-full border border-[var(--apple-border)] bg-[var(--background-secondary)] px-3 py-1 text-xs text-[var(--text-normal)] transition-colors hover:border-apple-blue"
+                            class="max-w-full inline-flex items-center gap-2 border border-[var(--apple-border)] bg-[var(--background-primary)] px-3 py-1 text-xs text-[var(--text-normal)] transition-colors hover:border-apple-blue"
                             @click="removeReference(item.id_timestamp)"
                             type="button"
                             :title="item.prompt"
@@ -34,7 +37,7 @@
 
                     <textarea 
                         ref="textareaRef"
-                        class="w-full p-4 pb-14 border-none rounded-xl resize-none text-[15px] leading-relaxed bg-transparent text-[var(--text-normal)] min-h-[120px] max-h-[250px] overflow-y-auto font-sans outline-none placeholder:text-[var(--text-muted)]" 
+                        class="w-full p-4 pb-14 border-none rounded-xl resize-none text-[15px] leading-relaxed bg-[var(--background-primary)] text-[var(--text-normal)] min-h-[120px] max-h-[250px] overflow-y-auto font-sans outline-none placeholder:text-[var(--text-muted)]" 
                         v-model="inputContent" 
                         placeholder="Ask anything..."
                         @input="adjustHeight"
@@ -44,6 +47,7 @@
                         @scroll="handleCaretChange"
                     ></textarea>
 
+                    <!-- 历史上下文弹层 -->
                     <div
                         v-if="showMentionMenu"
                         ref="mentionMenuRef"
