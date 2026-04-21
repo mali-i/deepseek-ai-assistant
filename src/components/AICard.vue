@@ -238,8 +238,8 @@ const emptyMentionText = computed(() => {
     }
 
     return mentionState.value.query.trim()
-        ? 'No matching conversations found for the current @ search.'
-        : 'No available conversations can be selected right now.';
+        ? 'No matching history conversations found for the current @ search.'
+        : 'No remaining history conversations are available to be selected.';
 });
 
 const mentionMenuStyle = computed(() => {
