@@ -39,7 +39,7 @@
                         ref="textareaRef"
                         class="w-full p-4 pb-14 border-none rounded-xl resize-none text-[15px] leading-relaxed bg-[var(--background-primary)] text-[var(--text-normal)] min-h-[120px] max-h-[250px] overflow-y-auto font-sans outline-none placeholder:text-[var(--text-muted)]" 
                         v-model="inputContent" 
-                        placeholder="Ask anything..."
+                        placeholder="Ask anything...Use @ to reference past conversations from today as context for this session."
                         @input="adjustHeight"
                         @click="handleCaretChange"
                         @keyup="handleCaretChange"
