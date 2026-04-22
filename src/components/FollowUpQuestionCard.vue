@@ -1,6 +1,7 @@
 <template>
     <div
         v-if="selectionAction"
+        ref="rootRef"
         class="absolute z-20"
         :style="floatingStyle"
     >
@@ -22,7 +23,7 @@
             class="w-[320px] rounded-2xl border border-[var(--apple-border)] bg-[var(--background-primary)] p-3 shadow-2xl"
             @mousedown.stop
         >
-            <div class="mb-2 text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)]">Follow-up branch</div>
+            <div class="mb-2 text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)]">Follow-up Questions</div>
             <div class="mb-3 rounded-xl bg-[var(--background-secondary)] px-3 py-2 text-xs text-[var(--text-muted)] line-clamp-3">
                 {{ selectionAction.text }}
             </div>
@@ -99,12 +100,6 @@
                     </div>
                 </div>
                 <button
-                    class="rounded-lg px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--background-modifier-hover)] hover:text-[var(--text-normal)]"
-                    @click.stop="$emit('close')"
-                >
-                    Cancel
-                </button>
-                <button
                     class="rounded-lg bg-apple-blue px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-600"
                     @click.stop="$emit('send')"
                 >
@@ -116,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import type { Conversation, ModelConfig } from '../settings';
 import { buildPromptPreview, usePromptMentions } from '../composables/usePromptMentions';
 
@@ -137,6 +132,7 @@ const props = defineProps<{
     selectedModelId: string;
 }>();
 
+const rootRef = ref<HTMLElement | null>(null);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
 const followUpQuestionTextModel = computed({
@@ -195,6 +191,60 @@ const emit = defineEmits<{
     'update:followUpReferences': [value: Conversation[]];
     'update:selectedModelId': [value: string];
 }>();
+
+let isDocumentPointerDownBound = false;
+
+const handleDocumentPointerDown = (event: MouseEvent) => {
+    if (!props.selectionAction) {
+        return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof Node)) {
+        return;
+    }
+
+    if (rootRef.value?.contains(target)) {
+        return;
+    }
+
+    emit('close');
+};
+
+const bindDocumentPointerDown = () => {
+    if (isDocumentPointerDownBound) {
+        return;
+    }
+
+    document.addEventListener('mousedown', handleDocumentPointerDown, true);
+    isDocumentPointerDownBound = true;
+};
+
+const unbindDocumentPointerDown = () => {
+    if (!isDocumentPointerDownBound) {
+        return;
+    }
+
+    document.removeEventListener('mousedown', handleDocumentPointerDown, true);
+    isDocumentPointerDownBound = false;
+};
+
+watch(
+    () => props.selectionAction,
+    (value) => {
+        if (value) {
+            bindDocumentPointerDown();
+            return;
+        }
+
+        unbindDocumentPointerDown();
+    },
+    { immediate: true },
+);
+
+onBeforeUnmount(() => {
+    unbindDocumentPointerDown();
+});
 </script>
 
 <style scoped>
