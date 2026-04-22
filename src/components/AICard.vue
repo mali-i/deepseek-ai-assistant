@@ -20,6 +20,7 @@
                 :today-prompt-items="todayPromptItems"
                 :available-models="availableModels"
                 :selected-model-id="chatModel"
+                :overlay-target="overlayTarget"
                 @open="openFollowUpComposer"
                 @close="closeFollowUpComposer"
                 @send="sendFollowUpQuestionNow"
@@ -158,6 +159,7 @@ interface SelectionActionState {
 
 const props = defineProps<{
     plugin: any
+    overlayTarget?: HTMLElement | null
 }>();
 
 const availableModels = ref<any[]>([]);
@@ -303,10 +305,10 @@ const updateAnswerSelection = () => {
     }
 
     const container = answerContainerRef.value;
-    const host = container?.parentElement;
+    const overlayRoot = props.overlayTarget ?? container?.closest('[data-follow-up-overlay-root]') as HTMLElement | null;
     const selection = window.getSelection();
 
-    if (!container || !host || !selection || selection.rangeCount === 0 || selection.isCollapsed || !activeSourceConversation.value) {
+    if (!container || !overlayRoot || !selection || selection.rangeCount === 0 || selection.isCollapsed || !activeSourceConversation.value) {
         selectionAction.value = null;
         return;
     }
@@ -328,7 +330,7 @@ const updateAnswerSelection = () => {
     }
 
     const rangeRect = range.getBoundingClientRect();
-    const hostRect = host.getBoundingClientRect();
+    const overlayRect = overlayRoot.getBoundingClientRect();
     if (!rangeRect.width && !rangeRect.height) {
         selectionAction.value = null;
         return;
@@ -336,8 +338,9 @@ const updateAnswerSelection = () => {
 
     const composerHeight = 236;
     const floatingGap = 12;
-    const spaceAbove = rangeRect.top - hostRect.top;
-    const spaceBelow = hostRect.bottom - rangeRect.bottom;
+    const viewportPadding = 16;
+    const spaceAbove = rangeRect.top - overlayRect.top - viewportPadding;
+    const spaceBelow = overlayRect.bottom - rangeRect.bottom - viewportPadding;
     const placement = spaceAbove >= composerHeight + floatingGap
         ? 'above'
         : spaceBelow >= composerHeight + floatingGap
@@ -346,12 +349,12 @@ const updateAnswerSelection = () => {
                 ? 'above'
                 : 'below';
     const anchorTop = placement === 'above'
-        ? Math.max(rangeRect.top - hostRect.top, floatingGap)
-        : Math.min(rangeRect.bottom - hostRect.top, hostRect.height - floatingGap);
+        ? Math.max(rangeRect.top - overlayRect.top, viewportPadding + floatingGap)
+        : Math.min(rangeRect.bottom - overlayRect.top, overlayRect.height - viewportPadding - floatingGap);
 
     selectionAction.value = {
         text,
-        left: Math.min(Math.max(rangeRect.left - hostRect.left + rangeRect.width / 2, 32), hostRect.width - 32),
+        left: Math.min(Math.max(rangeRect.left - overlayRect.left + rangeRect.width / 2, 32), overlayRect.width - 32),
         top: anchorTop,
         placement,
     };

@@ -1,5 +1,5 @@
 <template>
-    <div class="absolute inset-0 flex w-full h-full overflow-hidden bg-[var(--background-primary)] text-[var(--text-normal)]">
+    <div ref="overlayRootRef" data-follow-up-overlay-root class="absolute inset-0 flex w-full h-full overflow-hidden bg-[var(--background-primary)] text-[var(--text-normal)]">
         <!-- 左侧边栏 -->
         <div
             class="relative flex flex-none h-full overflow-hidden bg-[var(--background-secondary)]"
@@ -146,7 +146,7 @@
             </div>
 
             <div class="min-h-0 flex-1 overflow-hidden">
-                <AICard :plugin="plugin"/>
+                <AICard :plugin="plugin" :overlay-target="overlayRootRef"/>
             </div>
         </div>
     </div>
@@ -170,6 +170,7 @@ const pluginStore = usePluginStore();
 const promptStore = usePromptStore();
 const { isSidebarOpen } = storeToRefs(pluginStore);
 const isDashboardCollapsed = ref(false);
+const overlayRootRef = ref<HTMLElement | null>(null);
 
 const selectedPromptLabel = computed(() => {
     const prompt = promptStore.historyCard?.prompt?.replace(/\s+/g, ' ').trim();

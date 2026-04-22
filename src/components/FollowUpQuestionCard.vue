@@ -1,10 +1,11 @@
 <template>
-    <div
-        v-if="selectionAction"
-        ref="rootRef"
-        class="absolute z-20"
-        :style="floatingStyle"
-    >
+    <Teleport :to="overlayTarget || 'body'" :disabled="!overlayTarget">
+        <div
+            v-if="selectionAction"
+            ref="rootRef"
+            class="absolute z-[1000]"
+            :style="floatingStyle"
+        >
         <button
             v-if="!isFollowUpComposerOpen"
             class="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--apple-border)] bg-[var(--background-primary)] text-[var(--text-normal)] shadow-lg transition-colors hover:border-apple-blue hover:text-apple-blue"
@@ -107,11 +108,12 @@
                 </button>
             </div>
         </div>
-    </div>
+        </div>
+    </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch, Teleport } from 'vue';
 import type { Conversation, ModelConfig } from '../settings';
 import { buildPromptPreview, usePromptMentions } from '../composables/usePromptMentions';
 
@@ -130,6 +132,7 @@ const props = defineProps<{
     todayPromptItems: Conversation[];
     availableModels: ModelConfig[];
     selectedModelId: string;
+    overlayTarget?: HTMLElement | null;
 }>();
 
 const rootRef = ref<HTMLElement | null>(null);
