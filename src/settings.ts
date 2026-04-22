@@ -1,20 +1,12 @@
 // 单条对话条目类型
 export interface Conversation {
-    id_timestamp: string;
-    prompt: string;
-    answer: string;
+    id_timestamp: string; // 对话id_时间戳，用来唯一指向对话
+    prompt: string; // 提问内容
+    answer: string; // ai回答内容
     model?: string;
     source_conversation_id?: string; // 主追问来源问题 id_timestamp
+    source_selection?: string; // 从上一轮回答中选中的追问片段
     context_refs?: string[];  // 通过 @ 引用的历史对话 id_timestamp 列表
-}
-
-export interface FollowUpConversation {
-    id: string;
-    question: string;
-    source_conversation_id: string;
-    source_selection: string;
-    created_at: string;
-    response_conversation_id?: string;
 }
   
   // 日期对应的完整数据
@@ -45,7 +37,6 @@ export interface SettingsInterfaceType{
 
     models: ModelConfig[]; // 新的主要配置项
     promptStats: DataStructure;
-    followUpConversations: FollowUpConversation[];
 }
 
 export const DEFAULT_SETTINGS: SettingsInterfaceType = {
@@ -67,6 +58,5 @@ export const DEFAULT_SETTINGS: SettingsInterfaceType = {
             providerUrl: 'https://platform.deepseek.com/'
         }
     ],
-    promptStats: {},
-    followUpConversations: []
+    promptStats: {}
 }

@@ -18,7 +18,6 @@
                 :follow-up-question-text="followUpQuestionText"
                 @open="openFollowUpComposer"
                 @close="closeFollowUpComposer"
-                @save="saveFollowUpConversation"
                 @send="sendFollowUpQuestionNow"
                 @update:follow-up-question-text="followUpQuestionText = $event"
             />
@@ -140,11 +139,9 @@ import { ref, computed , watch, nextTick, onMounted, onUnmounted} from 'vue';
 import { OpenAI } from 'openai';
 import {MarkdownRenderer, Notice} from 'obsidian';
 import {usePromptStore} from '../store/prompts'
-import type { HistoryCardItem } from '../store/prompts'
 import ThinkingClue from './ThinkingClue.vue'
 import FollowUpQuestionCard from './FollowUpQuestionCard.vue'
 import { DEFAULT_SETTINGS } from '../settings'
-import type { FollowUpConversation } from '../settings'
 
 interface PromptReference {
     id_timestamp: string;
@@ -223,32 +220,16 @@ const selectionAction = ref<SelectionActionState | null>(null);
 const isFollowUpComposerOpen = ref(false);
 const followUpQuestionText = ref('');
 
-const isFollowUpHistoryItem = (item: HistoryCardItem | null): item is FollowUpConversation => {
-    return Boolean(item && 'question' in item && 'source_selection' in item);
-}
-
 const historyItem = computed(() => promptStore.historyCard)
 const historyAnswer = computed(()=>{
-    if (!historyItem.value) {
-        return '';
-    }
-
-    if (isFollowUpHistoryItem(historyItem.value)) {
-        if (!historyItem.value.response_conversation_id) {
-            return '';
-        }
-
-        return promptStore.findPromptById(historyItem.value.response_conversation_id)?.answer || '';
-    }
-
-    return historyItem.value.answer || ''
+    return historyItem.value?.answer || ''
 })
 const activeSourceConversation = computed<PromptReference | null>(() => {
     if (!historyItem.value) {
         return null;
     }
 
-    const sourceConversation = isFollowUpHistoryItem(historyItem.value)
+    const sourceConversation = historyItem.value.source_conversation_id
         ? promptStore.findPromptById(historyItem.value.source_conversation_id)
         : historyItem.value;
 
@@ -347,8 +328,10 @@ answerContainerRef.value;
 watch(historyAnswer,async ()=>{
     // console.log('监听answerContainerRef.value;
     const container = document.querySelector('.answer-field') as HTMLElement
-    if(container && historyAnswer.value) {
+    if(container) {
         container.empty();
+    }
+    if(container && historyAnswer.value) {
         await MarkdownRenderer.render(
                 props.plugin.app,
                 historyAnswer.value,
@@ -741,7 +724,8 @@ const submitPrompt = async (
                 fullResponse,
                 selectedModelConfig.id,
                 contextRefIds,
-                sourceConversationId || orderedReferences[0]?.id_timestamp
+                sourceConversationId || orderedReferences[0]?.id_timestamp,
+                sourceSelection
             )
 
             if (savedPrompt) {
@@ -793,19 +777,6 @@ const submit = async () => {
     clearSelectionAction();
 }
 
-const saveFollowUpConversation = async () => {
-    const promptText = followUpQuestionText.value.trim();
-    const sourceConversation = activeSourceConversation.value;
-
-    if (!promptText || !selectionAction.value || !sourceConversation) {
-        return;
-    }
-
-    await promptStore.addFollowUpConversation(promptText, sourceConversation.id_timestamp, selectionAction.value.text)
-    new Notice('Follow-up saved')
-    closeFollowUpComposer();
-}
-
 const sendFollowUpQuestionNow = async () => {
     const promptText = followUpQuestionText.value.trim();
     const sourceConversation = activeSourceConversation.value;
@@ -815,18 +786,7 @@ const sendFollowUpQuestionNow = async () => {
         return;
     }
 
-    const savedPrompt = await submitPrompt(promptText, [sourceConversation], sourceConversation.id_timestamp, sourceSelection);
-    const savedFollowUpConversation = await promptStore.addFollowUpConversation(
-        promptText,
-        sourceConversation.id_timestamp,
-        sourceSelection,
-        savedPrompt?.id_timestamp
-    )
-
-    if (savedFollowUpConversation) {
-        promptStore.updateHistoryCard(savedFollowUpConversation)
-    }
-
+    await submitPrompt(promptText, [sourceConversation], sourceConversation.id_timestamp, sourceSelection);
     closeFollowUpComposer();
 }
 </script>

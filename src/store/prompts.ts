@@ -1,29 +1,103 @@
 import {ref} from 'vue'
 import {defineStore} from 'pinia'
 import {usePluginStore} from './plugin'
-import type { Conversation, FollowUpConversation } from '../settings'
+import type { Conversation } from '../settings'
 
-export type HistoryCardItem = Conversation | FollowUpConversation
+interface LegacyFollowUpConversation {
+    id: string;
+    question: string;
+    source_conversation_id: string;
+    source_selection: string;
+    created_at: string;
+    response_conversation_id?: string;
+}
 
 export const usePromptStore = defineStore('prompts',()=>{
     const pluginStore = usePluginStore()
 
     const promptStats = ref<Record<string, any>>({})
-    const followUpConversations = ref<FollowUpConversation[]>([])
     const selectedDate = ref(new Date().toISOString().split('T')[0])
-    const historyCard = ref<HistoryCardItem | null>(null)
+    const historyCard = ref<Conversation | null>(null)
+
+    const findPromptByIdInStats = (stats: Record<string, any>, id: string) => {
+        for (const date in stats) {
+            const dayStats = stats[date];
+            if (!dayStats?.prompt_content) {
+                continue;
+            }
+
+            const found = dayStats.prompt_content.find((item: Conversation) => item.id_timestamp === id);
+            if (found) {
+                return found;
+            }
+        }
+
+        return null;
+    };
+
+    const migrateLegacyFollowUps = async () => {
+        if (!pluginStore.plugin) {
+            return;
+        }
+
+        const legacyFollowUps = ((pluginStore.plugin.settings as any).followUpConversations || []) as LegacyFollowUpConversation[];
+        if (!legacyFollowUps.length) {
+            return;
+        }
+
+        const newStats = { ...promptStats.value };
+
+        legacyFollowUps.forEach((item) => {
+            const responseConversation = item.response_conversation_id
+                ? findPromptByIdInStats(newStats, item.response_conversation_id)
+                : null;
+
+            if (responseConversation) {
+                if (!responseConversation.source_selection) {
+                    responseConversation.source_selection = item.source_selection;
+                }
+                if (!responseConversation.source_conversation_id) {
+                    responseConversation.source_conversation_id = item.source_conversation_id;
+                }
+                return;
+            }
+
+            const existingDraft = findPromptByIdInStats(newStats, item.id);
+            if (existingDraft) {
+                return;
+            }
+
+            const createdDate = item.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
+            if (!newStats[createdDate]) {
+                newStats[createdDate] = { num: 0, prompt_content: [] };
+            }
+
+            newStats[createdDate].prompt_content.push({
+                id_timestamp: item.id,
+                prompt: item.question,
+                answer: '',
+                source_conversation_id: item.source_conversation_id,
+                source_selection: item.source_selection,
+            });
+            newStats[createdDate].num += 1;
+        });
+
+        promptStats.value = newStats;
+        delete (pluginStore.plugin.settings as any).followUpConversations;
+        await syncSettings(newStats);
+    };
 
     // 初始化时从插件设置里加载数据
     if (pluginStore.plugin) {
         promptStats.value = { ...pluginStore.plugin.settings.promptStats };
-        followUpConversations.value = [ ...(pluginStore.plugin.settings.followUpConversations || []) ];
+        void migrateLegacyFollowUps();
     }
 
-    async function syncSettings(newStats = promptStats.value, newFollowUpConversations = followUpConversations.value) {
+    async function syncSettings(newStats = promptStats.value) {
         if (!pluginStore.plugin) return;
 
         pluginStore.plugin.settings.promptStats = newStats;
-        pluginStore.plugin.settings.followUpConversations = newFollowUpConversations;
+        delete (pluginStore.plugin.settings as any).followUpConversations;
         await pluginStore.plugin.saveSettings();
     }
    
@@ -32,7 +106,8 @@ export const usePromptStore = defineStore('prompts',()=>{
         answer:string,
         modelName?: string,
         contextRefs?: string[],
-        sourceConversationId?: string
+        sourceConversationId?: string,
+        sourceSelection?: string
     ){
         if(!pluginStore.plugin) return null;
             // 获取当前日期作为键
@@ -51,6 +126,7 @@ export const usePromptStore = defineStore('prompts',()=>{
             answer,
             model: modelName,
             ...(sourceConversationId ? { source_conversation_id: sourceConversationId } : {}),
+            ...(sourceSelection ? { source_selection: sourceSelection } : {}),
             ...(contextRefs && contextRefs.length > 0 ? { context_refs: contextRefs } : {})
         };
         
@@ -62,42 +138,11 @@ export const usePromptStore = defineStore('prompts',()=>{
         promptStats.value = newStats;
         
         // 同步到插件设置
-        await syncSettings(newStats, followUpConversations.value);
+        await syncSettings(newStats);
         return newPrompt;
     }
 
-    async function addFollowUpConversation(
-        question: string,
-        sourceConversationId: string,
-        sourceSelection: string,
-        responseConversationId?: string
-    ) {
-        if (!pluginStore.plugin) return null;
-
-        const followUpConversation: FollowUpConversation = {
-            id: Date.now().toString(),
-            question,
-            source_conversation_id: sourceConversationId,
-            source_selection: sourceSelection,
-            created_at: new Date().toISOString(),
-            ...(responseConversationId ? { response_conversation_id: responseConversationId } : {}),
-        };
-
-        const newFollowUpConversations = [...followUpConversations.value, followUpConversation];
-        followUpConversations.value = newFollowUpConversations;
-        await syncSettings(promptStats.value, newFollowUpConversations);
-        return followUpConversation;
-    }
-
-    async function removeFollowUpConversation(id: string) {
-        if (!pluginStore.plugin) return;
-
-        const newFollowUpConversations = followUpConversations.value.filter((item) => item.id !== id);
-        followUpConversations.value = newFollowUpConversations;
-        await syncSettings(promptStats.value, newFollowUpConversations);
-    }
-
-    function updateHistoryCard(item: HistoryCardItem | null){
+    function updateHistoryCard(item: Conversation | null){
         historyCard.value = item
         // console.log('item被点击')
     }
@@ -127,10 +172,7 @@ export const usePromptStore = defineStore('prompts',()=>{
 
     return {
         promptStats,
-        followUpConversations,
         addPrompt,
-        addFollowUpConversation,
-        removeFollowUpConversation,
         selectedDate,
         updateHistoryCard,
         historyCard,

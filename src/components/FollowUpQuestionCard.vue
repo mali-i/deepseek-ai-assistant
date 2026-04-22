@@ -44,12 +44,6 @@
                     Cancel
                 </button>
                 <button
-                    class="rounded-lg border border-[var(--apple-border)] px-3 py-1.5 text-xs font-medium text-[var(--text-normal)] transition-colors hover:border-apple-blue hover:text-apple-blue"
-                    @click.stop="$emit('save')"
-                >
-                    Save
-                </button>
-                <button
                     class="rounded-lg bg-apple-blue px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-600"
                     @click.stop="$emit('send')"
                 >
@@ -76,7 +70,6 @@ defineProps<{
 defineEmits<{
     open: [];
     close: [];
-    save: [];
     send: [];
     'update:followUpQuestionText': [value: string];
 }>();
