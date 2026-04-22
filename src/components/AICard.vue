@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col h-full p-2 max-w-[900px] mx-auto w-full">
+    <div class="flex flex-col h-full p-2 pb-4 max-w-[900px] mx-auto w-full">
         <!-- Answer Area -->
         <div class="flex-1 overflow-hidden relative rounded-xl bg-transparent mb-6 group/answer">
             <div v-if="!historyAnswer && !isLoading && !hasResponse" class="absolute inset-0 flex flex-col items-center justify-center text-[var(--text-muted)] opacity-50 pointer-events-none">
@@ -53,9 +53,9 @@
 
                     <textarea 
                         ref="textareaRef"
-                        class="w-full p-4 pb-14 border-none rounded-xl resize-none text-[15px] leading-relaxed bg-[var(--background-primary)] text-[var(--text-normal)] min-h-[120px] max-h-[250px] overflow-y-auto font-sans outline-none placeholder:text-[var(--text-muted)]" 
+                        class="w-full p-4 pb-14 border-none rounded-xl resize-none text-[15px] leading-relaxed bg-[var(--background-primary)] text-[var(--text-normal)] min-h-[120px] max-h-[250px] overflow-y-auto font-sans outline-none placeholder:text-[12px] placeholder:text-[var(--text-muted)]" 
                         v-model="inputContent" 
-                        placeholder="Ask anything...Use @ to reference past conversations from today as context for this session."
+                        placeholder="Use @ to reference past conversations from today as context for this session."
                         @input="adjustHeight"
                         @click="handleCaretChange"
                         @keyup="handleCaretChange"
