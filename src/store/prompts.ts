@@ -1,28 +1,28 @@
 import {ref} from 'vue'
 import {defineStore} from 'pinia'
 import {usePluginStore} from './plugin'
-import type { Conversation, FollowUpDraft } from '../settings'
+import type { Conversation, FollowUpConversation } from '../settings'
 
 
 export const usePromptStore = defineStore('prompts',()=>{
     const pluginStore = usePluginStore()
 
     const promptStats = ref<Record<string, any>>({})
-    const followUpDrafts = ref<FollowUpDraft[]>([])
+    const followUpConversations = ref<FollowUpConversation[]>([])
     const selectedDate = ref(new Date().toISOString().split('T')[0])
     const historyCard = ref<Conversation | null>(null)
 
     // 初始化时从插件设置里加载数据
     if (pluginStore.plugin) {
         promptStats.value = { ...pluginStore.plugin.settings.promptStats };
-        followUpDrafts.value = [ ...(pluginStore.plugin.settings.followUpDrafts || []) ];
+        followUpConversations.value = [ ...(pluginStore.plugin.settings.followUpConversations || []) ];
     }
 
-    async function syncSettings(newStats = promptStats.value, newDrafts = followUpDrafts.value) {
+    async function syncSettings(newStats = promptStats.value, newFollowUpConversations = followUpConversations.value) {
         if (!pluginStore.plugin) return;
 
         pluginStore.plugin.settings.promptStats = newStats;
-        pluginStore.plugin.settings.followUpDrafts = newDrafts;
+        pluginStore.plugin.settings.followUpConversations = newFollowUpConversations;
         await pluginStore.plugin.saveSettings();
     }
    
@@ -61,33 +61,33 @@ export const usePromptStore = defineStore('prompts',()=>{
         promptStats.value = newStats;
         
         // 同步到插件设置
-        await syncSettings(newStats, followUpDrafts.value);
+        await syncSettings(newStats, followUpConversations.value);
         return newPrompt;
     }
 
-    async function addFollowUpDraft(draftQuestion: string, sourceConversationId: string, sourceSelection: string) {
+    async function addFollowUpConversation(question: string, sourceConversationId: string, sourceSelection: string) {
         if (!pluginStore.plugin) return null;
 
-        const draft: FollowUpDraft = {
-            id: `draft-${Date.now()}`,
-            draft_question: draftQuestion,
+        const followUpConversation: FollowUpConversation = {
+            id: Date.now().toString(),
+            question,
             source_conversation_id: sourceConversationId,
             source_selection: sourceSelection,
             created_at: new Date().toISOString(),
         };
 
-        const newDrafts = [...followUpDrafts.value, draft];
-        followUpDrafts.value = newDrafts;
-        await syncSettings(promptStats.value, newDrafts);
-        return draft;
+        const newFollowUpConversations = [...followUpConversations.value, followUpConversation];
+        followUpConversations.value = newFollowUpConversations;
+        await syncSettings(promptStats.value, newFollowUpConversations);
+        return followUpConversation;
     }
 
-    async function removeFollowUpDraft(id: string) {
+    async function removeFollowUpConversation(id: string) {
         if (!pluginStore.plugin) return;
 
-        const newDrafts = followUpDrafts.value.filter((item) => item.id !== id);
-        followUpDrafts.value = newDrafts;
-        await syncSettings(promptStats.value, newDrafts);
+        const newFollowUpConversations = followUpConversations.value.filter((item) => item.id !== id);
+        followUpConversations.value = newFollowUpConversations;
+        await syncSettings(promptStats.value, newFollowUpConversations);
     }
 
     function updateHistoryCard(item: Conversation | null){
@@ -120,10 +120,10 @@ export const usePromptStore = defineStore('prompts',()=>{
 
     return {
         promptStats,
-        followUpDrafts,
+        followUpConversations,
         addPrompt,
-        addFollowUpDraft,
-        removeFollowUpDraft,
+        addFollowUpConversation,
+        removeFollowUpConversation,
         selectedDate,
         updateHistoryCard,
         historyCard,

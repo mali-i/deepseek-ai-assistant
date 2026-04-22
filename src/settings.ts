@@ -8,9 +8,9 @@ export interface Conversation {
     context_refs?: string[];  // 通过 @ 引用的历史对话 id_timestamp 列表
 }
 
-export interface FollowUpDraft {
+export interface FollowUpConversation {
     id: string;
-    draft_question: string;
+    question: string;
     source_conversation_id: string;
     source_selection: string;
     created_at: string;
@@ -44,7 +44,7 @@ export interface SettingsInterfaceType{
 
     models: ModelConfig[]; // 新的主要配置项
     promptStats: DataStructure;
-    followUpDrafts: FollowUpDraft[];
+    followUpConversations: FollowUpConversation[];
 }
 
 export const DEFAULT_SETTINGS: SettingsInterfaceType = {
@@ -67,5 +67,5 @@ export const DEFAULT_SETTINGS: SettingsInterfaceType = {
         }
     ],
     promptStats: {},
-    followUpDrafts: []
+    followUpConversations: []
 }

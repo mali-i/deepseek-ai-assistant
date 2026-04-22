@@ -12,64 +12,16 @@
                 <ThinkingClue />
             </div>
             <div ref="answerContainerRef" class="answer-field absolute inset-0 overflow-y-auto p-6 font-sans leading-relaxed select-text cursor-text prose dark:prose-invert max-w-none"></div>
-            <div
-                v-if="selectionAction"
-                class="absolute z-20"
-                :style="{
-                    top: `${selectionAction.top}px`,
-                    left: `${selectionAction.left}px`,
-                    transform: 'translate(-50%, -100%)'
-                }"
-            >
-                <button
-                    v-if="!isDraftComposerOpen"
-                    class="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--apple-border)] bg-[var(--background-primary)] text-[var(--text-normal)] shadow-lg transition-colors hover:border-apple-blue hover:text-apple-blue"
-                    title="Create follow-up"
-                    @mousedown.prevent
-                    @click.stop="openDraftComposer"
-                >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 5v14"></path>
-                        <path d="M5 12h14"></path>
-                    </svg>
-                </button>
-
-                <div
-                    v-else
-                    class="w-[320px] rounded-2xl border border-[var(--apple-border)] bg-[var(--background-primary)] p-3 shadow-2xl"
-                    @mousedown.prevent
-                >
-                    <div class="mb-2 text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)]">Follow-up branch</div>
-                    <div class="mb-3 rounded-xl bg-[var(--background-secondary)] px-3 py-2 text-xs text-[var(--text-muted)] line-clamp-3">
-                        {{ selectionAction.text }}
-                    </div>
-                    <textarea
-                        v-model="draftQuestion"
-                        class="min-h-[88px] w-full resize-none rounded-xl border border-[var(--background-modifier-border)] bg-[var(--background-primary)] px-3 py-2 text-sm leading-relaxed text-[var(--text-normal)] outline-none transition-colors focus:border-apple-blue"
-                        placeholder="Capture the next question from this answer..."
-                    ></textarea>
-                    <div class="mt-3 flex items-center justify-end gap-2">
-                        <button
-                            class="rounded-lg px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--background-modifier-hover)] hover:text-[var(--text-normal)]"
-                            @click.stop="closeDraftComposer"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            class="rounded-lg border border-[var(--apple-border)] px-3 py-1.5 text-xs font-medium text-[var(--text-normal)] transition-colors hover:border-apple-blue hover:text-apple-blue"
-                            @click.stop="saveDraft"
-                        >
-                            Save
-                        </button>
-                        <button
-                            class="rounded-lg bg-apple-blue px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-600"
-                            @click.stop="sendDraftNow"
-                        >
-                            Ask now
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <FollowUpQuestionCard
+                :selection-action="selectionAction"
+                :is-follow-up-composer-open="isFollowUpComposerOpen"
+                :follow-up-question-text="followUpQuestionText"
+                @open="openFollowUpComposer"
+                @close="closeFollowUpComposer"
+                @save="saveFollowUpConversation"
+                @send="sendFollowUpQuestionNow"
+                @update:follow-up-question-text="followUpQuestionText = $event"
+            />
         </div>
 
         <!-- Input Area -->
@@ -189,6 +141,7 @@ import { OpenAI } from 'openai';
 import {MarkdownRenderer, Notice} from 'obsidian';
 import {usePromptStore} from '../store/prompts'
 import ThinkingClue from './ThinkingClue.vue'
+import FollowUpQuestionCard from './FollowUpQuestionCard.vue'
 import { DEFAULT_SETTINGS } from '../settings'
 
 interface PromptReference {
@@ -265,8 +218,8 @@ const mentionState = ref<MentionState | null>(null);
 const activeMentionIndex = ref(0);
 const mentionMenuPosition = ref<MentionMenuPosition | null>(null);
 const selectionAction = ref<SelectionActionState | null>(null);
-const isDraftComposerOpen = ref(false);
-const draftQuestion = ref('');
+const isFollowUpComposerOpen = ref(false);
+const followUpQuestionText = ref('');
 
 const historyItem = computed(() => promptStore.historyCard)
 const historyAnswer = computed(()=>{
@@ -419,12 +372,12 @@ const clearMentionState = () => {
 
 const clearSelectionAction = () => {
     selectionAction.value = null;
-    isDraftComposerOpen.value = false;
-    draftQuestion.value = '';
+    isFollowUpComposerOpen.value = false;
+    followUpQuestionText.value = '';
 };
 
 const updateAnswerSelection = () => {
-    if (isDraftComposerOpen.value) {
+    if (isFollowUpComposerOpen.value) {
         return;
     }
 
@@ -467,16 +420,16 @@ const updateAnswerSelection = () => {
     };
 };
 
-const openDraftComposer = () => {
+const openFollowUpComposer = () => {
     if (!selectionAction.value) {
         return;
     }
 
-    isDraftComposerOpen.value = true;
-    draftQuestion.value = '';
+    isFollowUpComposerOpen.value = true;
+    followUpQuestionText.value = '';
 };
 
-const closeDraftComposer = () => {
+const closeFollowUpComposer = () => {
     clearSelectionAction();
     window.getSelection()?.removeAllRanges();
 };
@@ -800,21 +753,21 @@ const submit = async () => {
     clearSelectionAction();
 }
 
-const saveDraft = async () => {
-    const promptText = draftQuestion.value.trim();
+const saveFollowUpConversation = async () => {
+    const promptText = followUpQuestionText.value.trim();
     const sourceConversation = activeSourceConversation.value;
 
     if (!promptText || !selectionAction.value || !sourceConversation) {
         return;
     }
 
-    await promptStore.addFollowUpDraft(promptText, sourceConversation.id_timestamp, selectionAction.value.text)
+    await promptStore.addFollowUpConversation(promptText, sourceConversation.id_timestamp, selectionAction.value.text)
     new Notice('Follow-up saved')
-    closeDraftComposer();
+    closeFollowUpComposer();
 }
 
-const sendDraftNow = async () => {
-    const promptText = draftQuestion.value.trim();
+const sendFollowUpQuestionNow = async () => {
+    const promptText = followUpQuestionText.value.trim();
     const sourceConversation = activeSourceConversation.value;
 
     if (!promptText || !selectionAction.value || !sourceConversation) {
@@ -822,7 +775,7 @@ const sendDraftNow = async () => {
     }
 
     await submitPrompt(promptText, [sourceConversation], sourceConversation.id_timestamp);
-    closeDraftComposer();
+    closeFollowUpComposer();
 }
 </script>
 

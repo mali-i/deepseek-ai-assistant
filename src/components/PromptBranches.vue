@@ -40,7 +40,7 @@
         </div>
 
         <div class="flex items-center gap-1 text-[10px] uppercase tracking-[0.14em] text-[var(--text-muted)]">
-          <span v-if="row.kind === 'draft'" class="rounded-full border border-dashed border-[var(--background-modifier-border)] px-2 py-0.5">Draft</span>
+          <span v-if="row.kind === 'follow-up'" class="rounded-full border border-dashed border-[var(--background-modifier-border)] px-2 py-0.5">Follow-up</span>
           <span v-else-if="row.sourceConversationId" class="rounded-full border border-[var(--background-modifier-border)] px-2 py-0.5">Branch</span>
           <span v-else class="rounded-full border border-[var(--background-modifier-border)] px-2 py-0.5">Root</span>
           <span v-if="row.extraRefsCount > 0" class="rounded-full border border-[var(--background-modifier-border)] px-2 py-0.5">Refs {{ row.extraRefsCount }}</span>
@@ -49,16 +49,16 @@
 
       <div
         class="prompt-content rounded-xl border p-3 transition-all duration-200"
-        :class="row.kind === 'draft'
+        :class="row.kind === 'follow-up'
           ? 'border-dashed border-[var(--background-modifier-border)] bg-[var(--background-secondary)]'
           : 'cursor-pointer border-[var(--background-modifier-border)] bg-[var(--background-primary)] hover:border-apple-blue hover:shadow-sm'"
         @click="row.kind === 'conversation' ? clickItem(row.item as Conversation) : undefined"
       >
         <div class="font-sans text-[13px] leading-relaxed text-[var(--text-normal)] line-clamp-4">
-          {{ row.kind === 'conversation' ? (row.item as Conversation).prompt : (row.item as FollowUpDraft).draft_question }}
+          {{ row.kind === 'conversation' ? (row.item as Conversation).prompt : (row.item as FollowUpConversation).question }}
         </div>
-        <div v-if="row.kind === 'draft'" class="mt-2 text-xs leading-relaxed text-[var(--text-muted)] line-clamp-2">
-          From selection: {{ (row.item as FollowUpDraft).source_selection }}
+        <div v-if="row.kind === 'follow-up'" class="mt-2 text-xs leading-relaxed text-[var(--text-muted)] line-clamp-2">
+          From selection: {{ (row.item as FollowUpConversation).source_selection }}
         </div>
       </div>
     </div>
@@ -68,25 +68,30 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { usePromptStore } from '../store/prompts'
-import type { Conversation, FollowUpDraft } from '../settings'
+import type { Conversation, FollowUpConversation } from '../settings'
 
 interface BranchNode {
   key: string;
-  kind: 'conversation' | 'draft';
+  kind: 'conversation' | 'follow-up';
   timestamp: number;
-  item: Conversation | FollowUpDraft;
+  item: Conversation | FollowUpConversation;
   sourceConversationId?: string;
   extraRefsCount: number;
   children: BranchNode[];
 }
 
+interface ConversationTreeNode {
+  conversation: Conversation;
+  children: ConversationTreeNode[];
+}
+
 interface BranchRow {
   key: string;
-  kind: 'conversation' | 'draft';
+  kind: 'conversation' | 'follow-up';
   depth: number;
   order: number;
   timestamp: string;
-  item: Conversation | FollowUpDraft;
+  item: Conversation | FollowUpConversation;
   sourceConversationId?: string;
   extraRefsCount: number;
   hasChildren: boolean;
@@ -108,14 +113,20 @@ const currentDatePromptIds = computed(() => {
   return new Set(currentDatePrompts.value.map((item) => item.id_timestamp));
 })
 
-const currentDateDrafts = computed<FollowUpDraft[]>(() => {
-  return (promptStore.followUpDrafts || []).filter((item: FollowUpDraft) => {
+const currentDateFollowUpConversations = computed<FollowUpConversation[]>(() => {
+  return (promptStore.followUpConversations || []).filter((item: FollowUpConversation) => {
     return item.created_at.startsWith(promptStore.selectedDate) || currentDatePromptIds.value.has(item.source_conversation_id);
   });
 })
 
 const branchRows = computed<BranchRow[]>(() => {
+  if (!currentDateFollowUpConversations.value.length) {
+    return [];
+  }
+
   const nodesById = new Map<string, BranchNode>();
+  const conversationTreeById = new Map<string, ConversationTreeNode>();
+  const conversationRoots: ConversationTreeNode[] = [];
   const roots: BranchNode[] = [];
 
   currentDatePrompts.value.forEach((item) => {
@@ -128,22 +139,51 @@ const branchRows = computed<BranchRow[]>(() => {
       extraRefsCount: Math.max((item.context_refs?.length || 0) - (item.source_conversation_id ? 1 : 0), 0),
       children: [],
     });
+
+    conversationTreeById.set(item.id_timestamp, {
+      conversation: item,
+      children: [],
+    });
   });
 
   currentDatePrompts.value.forEach((item) => {
-    const node = nodesById.get(item.id_timestamp)!;
     const parentId = item.source_conversation_id;
-    if (parentId && parentId !== item.id_timestamp && nodesById.has(parentId)) {
-      nodesById.get(parentId)!.children.push(node);
+    const treeNode = conversationTreeById.get(item.id_timestamp)!;
+    if (parentId && parentId !== item.id_timestamp && conversationTreeById.has(parentId)) {
+      conversationTreeById.get(parentId)!.children.push(treeNode);
       return;
     }
-    roots.push(node);
+    conversationRoots.push(treeNode);
   });
 
-  currentDateDrafts.value.forEach((item) => {
-    const draftNode: BranchNode = {
-      key: `draft-${item.id}`,
-      kind: 'draft',
+  const followUpSourceIds = new Set(currentDateFollowUpConversations.value.map((item) => item.source_conversation_id));
+
+  const collectConversationBranch = (treeNode: ConversationTreeNode): BranchNode | null => {
+    const childBranches = treeNode.children
+      .map((child) => collectConversationBranch(child))
+      .filter((child): child is BranchNode => Boolean(child));
+
+    const conversationNode = nodesById.get(treeNode.conversation.id_timestamp)!;
+    conversationNode.children = childBranches;
+
+    if (followUpSourceIds.has(treeNode.conversation.id_timestamp) || childBranches.length > 0) {
+      return conversationNode;
+    }
+
+    return null;
+  };
+
+  conversationRoots.forEach((treeNode) => {
+    const branchRoot = collectConversationBranch(treeNode);
+    if (branchRoot) {
+      roots.push(branchRoot);
+    }
+  });
+
+  currentDateFollowUpConversations.value.forEach((item) => {
+    const followUpNode: BranchNode = {
+      key: `follow-up-${item.id}`,
+      kind: 'follow-up',
       timestamp: Date.parse(item.created_at),
       item,
       sourceConversationId: item.source_conversation_id,
@@ -153,10 +193,8 @@ const branchRows = computed<BranchRow[]>(() => {
 
     const parentNode = nodesById.get(item.source_conversation_id);
     if (parentNode) {
-      parentNode.children.push(draftNode);
-      return;
+      parentNode.children.push(followUpNode);
     }
-    roots.push(draftNode);
   });
 
   const sortNodes = (items: BranchNode[]) => {
@@ -175,7 +213,7 @@ const branchRows = computed<BranchRow[]>(() => {
       kind: node.kind,
       depth,
       order,
-      timestamp: node.kind === 'conversation' ? (node.item as Conversation).id_timestamp : (node.item as FollowUpDraft).created_at,
+      timestamp: node.kind === 'conversation' ? (node.item as Conversation).id_timestamp : (node.item as FollowUpConversation).created_at,
       item: node.item,
       sourceConversationId: node.sourceConversationId,
       extraRefsCount: node.extraRefsCount,
