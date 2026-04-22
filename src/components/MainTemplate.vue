@@ -12,7 +12,7 @@
                 :style="{ flexDirection: 'column' }"
             >
                 <!-- 侧边栏顶部面包屑导航栏区 -->
-                <div class="flex h-11 items-center justify-between border-b border-[var(--apple-border)] px-3">
+                <div class="flex h-10 items-center justify-between border-b border-[var(--apple-border)] px-3">
                     <div class="inline-flex items-center gap-1 overflow-hidden select-none">
                         <span class="inline-flex items-center rounded-full bg-[var(--background-modifier-hover)] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
                             History
