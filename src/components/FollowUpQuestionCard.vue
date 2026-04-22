@@ -2,11 +2,7 @@
     <div
         v-if="selectionAction"
         class="absolute z-20"
-        :style="{
-            top: `${selectionAction.top}px`,
-            left: `${selectionAction.left}px`,
-            transform: 'translate(-50%, -100%)'
-        }"
+        :style="floatingStyle"
     >
         <button
             v-if="!isFollowUpComposerOpen"
@@ -55,17 +51,39 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
 interface SelectionActionState {
     text: string;
     top: number;
     left: number;
+    placement: 'above' | 'below';
 }
 
-defineProps<{
+const props = defineProps<{
     selectionAction: SelectionActionState | null;
     isFollowUpComposerOpen: boolean;
     followUpQuestionText: string;
 }>();
+
+const floatingStyle = computed(() => {
+    if (!props.selectionAction) {
+        return {};
+    }
+
+    const isComposer = props.isFollowUpComposerOpen;
+    const horizontalPadding = isComposer ? 172 : 24;
+    const verticalOffset = isComposer ? 12 : 10;
+    const translateY = props.selectionAction.placement === 'above'
+        ? `calc(-100% - ${verticalOffset}px)`
+        : `${verticalOffset}px`;
+
+    return {
+        top: `${props.selectionAction.top}px`,
+        left: `clamp(${horizontalPadding}px, ${props.selectionAction.left}px, calc(100% - ${horizontalPadding}px))`,
+        transform: `translate(-50%, ${translateY})`,
+    };
+});
 
 defineEmits<{
     open: [];

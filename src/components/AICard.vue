@@ -166,6 +166,7 @@ interface SelectionActionState {
     text: string;
     top: number;
     left: number;
+    placement: 'above' | 'below';
 }
 
 const props = defineProps<{
@@ -422,10 +423,26 @@ const updateAnswerSelection = () => {
         return;
     }
 
+    const composerHeight = 236;
+    const floatingGap = 12;
+    const spaceAbove = rangeRect.top - hostRect.top;
+    const spaceBelow = hostRect.bottom - rangeRect.bottom;
+    const placement = spaceAbove >= composerHeight + floatingGap
+        ? 'above'
+        : spaceBelow >= composerHeight + floatingGap
+            ? 'below'
+            : spaceAbove > spaceBelow
+                ? 'above'
+                : 'below';
+    const anchorTop = placement === 'above'
+        ? Math.max(rangeRect.top - hostRect.top, floatingGap)
+        : Math.min(rangeRect.bottom - hostRect.top, hostRect.height - floatingGap);
+
     selectionAction.value = {
         text,
         left: Math.min(Math.max(rangeRect.left - hostRect.left + rangeRect.width / 2, 32), hostRect.width - 32),
-        top: Math.max(rangeRect.top - hostRect.top - 12, 12),
+        top: anchorTop,
+        placement,
     };
 };
 
