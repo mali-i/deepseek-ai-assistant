@@ -57,8 +57,13 @@
         <div class="font-sans text-[13px] leading-relaxed text-[var(--text-normal)] line-clamp-4">
           {{ row.kind === 'conversation' ? (row.item as Conversation).prompt : (row.item as FollowUpConversation).question }}
         </div>
-        <div v-if="row.kind === 'follow-up'" class="mt-2 text-xs leading-relaxed text-[var(--text-muted)] line-clamp-2">
-          From selection: {{ (row.item as FollowUpConversation).source_selection }}
+        <div v-if="row.kind === 'follow-up'" class="mt-3 rounded-lg border border-[var(--background-modifier-border)] bg-[var(--background-primary)]/70 px-3 py-2">
+          <div class="mb-1 text-[10px] uppercase tracking-[0.14em] text-[var(--text-muted)]">
+            Selected excerpt
+          </div>
+          <div class="text-xs leading-relaxed text-[var(--text-muted)] line-clamp-4">
+            {{ (row.item as FollowUpConversation).source_selection }}
+          </div>
         </div>
       </div>
     </div>

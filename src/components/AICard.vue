@@ -625,7 +625,8 @@ const handleCommand = (command: string | number | object) => {
 const submitPrompt = async (
     promptText: string,
     references: PromptReference[] = selectedReferences.value,
-    sourceConversationId?: string
+    sourceConversationId?: string,
+    sourceSelection?: string
 ) => {
     const container = answerContainerRef.value;
     if(container) container.empty();
@@ -662,6 +663,19 @@ const submitPrompt = async (
                     { role: 'assistant' as const, content: item.answer },
                 ];
             }),
+            ...(sourceSelection
+                ? [{
+                    role: 'system' as const,
+                    content: [
+                        '当前用户正在基于上一轮回答中的一个选中片段继续追问。',
+                        '回答后续问题时，请遵守以下规则：',
+                        '1. 如果用户的问题是在追问原因、细节、边界条件或示例，回答时要直接对应到选中片段，不要泛泛重述整段历史对话。',
+                        '',
+                        '用户选中的片段：',
+                        sourceSelection,
+                    ].join('\n')
+                }]
+                : []),
             {role: 'user' as const, content: promptText}
         ];
 
@@ -769,12 +783,14 @@ const saveFollowUpConversation = async () => {
 const sendFollowUpQuestionNow = async () => {
     const promptText = followUpQuestionText.value.trim();
     const sourceConversation = activeSourceConversation.value;
+    const sourceSelection = selectionAction.value?.text?.trim();
 
-    if (!promptText || !selectionAction.value || !sourceConversation) {
+    if (!promptText || !sourceSelection || !sourceConversation) {
         return;
     }
 
-    await submitPrompt(promptText, [sourceConversation], sourceConversation.id_timestamp);
+    await submitPrompt(promptText, [sourceConversation], sourceConversation.id_timestamp, sourceSelection);
+    await promptStore.addFollowUpConversation(promptText, sourceConversation.id_timestamp, sourceSelection)
     closeFollowUpComposer();
 }
 </script>
