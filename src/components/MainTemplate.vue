@@ -114,6 +114,9 @@
                         <svg class="h-3 w-3 shrink-0 text-[var(--text-faint)]" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M6 3.5L10.5 8L6 12.5"></path>
                         </svg>
+                        <span v-if="selectedPromptLabel" class="truncate text-xs font-medium text-[var(--text-normal)]">
+                            {{ selectedPromptLabel }}
+                        </span>
                     </div>
                 </div>
 
@@ -134,8 +137,9 @@ import AICard from "./AICard.vue";
 import HeatMap from "./HeatMap.vue";
 import DataPanel from "./DataPanel.vue";
 import PromptLine from "./PromptLine.vue";
-import { ref, onUnmounted } from 'vue';
+import { computed, ref, onUnmounted } from 'vue';
 import { usePluginStore } from "../store/plugin";
+import { usePromptStore } from "../store/prompts";
 import { storeToRefs } from "pinia";
 
 const props = defineProps<{
@@ -143,8 +147,18 @@ const props = defineProps<{
 }>();
 
 const pluginStore = usePluginStore();
+const promptStore = usePromptStore();
 const { isSidebarOpen } = storeToRefs(pluginStore);
 const isDashboardCollapsed = ref(false);
+
+const selectedPromptLabel = computed(() => {
+    const prompt = promptStore.historyCard?.prompt?.replace(/\s+/g, ' ').trim();
+    if (!prompt) {
+        return '';
+    }
+
+    return prompt.length > 60 ? `${prompt.slice(0, 60)}...` : prompt;
+});
 
 const toggleSidebar = () => {
     pluginStore.toggleSidebar();
