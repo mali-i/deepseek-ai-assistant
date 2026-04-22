@@ -14,6 +14,7 @@ export interface FollowUpConversation {
     source_conversation_id: string;
     source_selection: string;
     created_at: string;
+    response_conversation_id?: string;
 }
   
   // 日期对应的完整数据

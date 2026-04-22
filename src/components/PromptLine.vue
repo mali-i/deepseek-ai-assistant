@@ -24,23 +24,6 @@
           />
         </div>
 
-        <div class="flex items-center gap-1 rounded-lg bg-[var(--background-secondary)] p-1 border border-[var(--background-modifier-border)]">
-          <button
-            class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors"
-            :class="viewMode === 'timeline' ? 'bg-[var(--background-primary)] text-[var(--text-normal)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-normal)]'"
-            @click="setViewMode('timeline')"
-          >
-            Timeline
-          </button>
-          <button
-            class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors"
-            :class="viewMode === 'branches' ? 'bg-[var(--background-primary)] text-[var(--text-normal)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-normal)]'"
-            @click="setViewMode('branches')"
-          >
-            Branches
-          </button>
-        </div>
-
         <button
           @click="toggleSearch"
           class="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-normal)] hover:bg-[var(--background-modifier-hover)] transition-colors"
@@ -60,7 +43,7 @@
     </div>
 
     <div class="flex-1 overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-black/10 dark:scrollbar-thumb-white/10">
-      <div v-if="viewMode === 'timeline'" class="pl-2">
+      <div class="pl-2">
         <div class="relative ml-2 space-y-6 pb-2">
           <div v-if="sortedPromptContent.length === 0" class="pl-6 text-sm text-[var(--text-muted)] italic">
             No prompts found.
@@ -96,8 +79,6 @@
           </div>
         </div>
       </div>
-
-      <PromptBranches v-else />
     </div>
   </div>
 </template>
@@ -105,7 +86,6 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted } from 'vue';
 import { Notice } from 'obsidian';
-import PromptBranches from './PromptBranches.vue'
 import { usePromptStore } from '../store/prompts'
 import type { Conversation } from '../settings'
 
@@ -119,7 +99,6 @@ defineProps<{
 const isSearchActive = ref(false);
 const searchQuery = ref('');
 const searchInputRef = ref<HTMLInputElement | null>(null);
-const viewMode = ref<'timeline' | 'branches'>('timeline');
 
 onMounted(() => {
   if (searchInputRef.value) {
@@ -166,18 +145,10 @@ const sortedPromptContent = computed(() => {
   return content.sort((a, b) => Number(b.id_timestamp) - Number(a.id_timestamp))
 })
 
-const setViewMode = (mode: 'timeline' | 'branches') => {
-  viewMode.value = mode;
-  if (mode === 'branches') {
-    closeSearch();
-  }
-}
-
 const toggleSearch = () => {
   if (isSearchActive.value) {
     closeSearch();
   } else {
-    viewMode.value = 'timeline';
     isSearchActive.value = true;
     nextTick(() => {
       searchInputRef.value?.focus();

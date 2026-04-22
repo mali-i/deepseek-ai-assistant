@@ -140,9 +140,11 @@ import { ref, computed , watch, nextTick, onMounted, onUnmounted} from 'vue';
 import { OpenAI } from 'openai';
 import {MarkdownRenderer, Notice} from 'obsidian';
 import {usePromptStore} from '../store/prompts'
+import type { HistoryCardItem } from '../store/prompts'
 import ThinkingClue from './ThinkingClue.vue'
 import FollowUpQuestionCard from './FollowUpQuestionCard.vue'
 import { DEFAULT_SETTINGS } from '../settings'
+import type { FollowUpConversation } from '../settings'
 
 interface PromptReference {
     id_timestamp: string;
@@ -221,20 +223,44 @@ const selectionAction = ref<SelectionActionState | null>(null);
 const isFollowUpComposerOpen = ref(false);
 const followUpQuestionText = ref('');
 
+const isFollowUpHistoryItem = (item: HistoryCardItem | null): item is FollowUpConversation => {
+    return Boolean(item && 'question' in item && 'source_selection' in item);
+}
+
 const historyItem = computed(() => promptStore.historyCard)
 const historyAnswer = computed(()=>{
-    return historyItem.value?.answer || ''
+    if (!historyItem.value) {
+        return '';
+    }
+
+    if (isFollowUpHistoryItem(historyItem.value)) {
+        if (!historyItem.value.response_conversation_id) {
+            return '';
+        }
+
+        return promptStore.findPromptById(historyItem.value.response_conversation_id)?.answer || '';
+    }
+
+    return historyItem.value.answer || ''
 })
 const activeSourceConversation = computed<PromptReference | null>(() => {
-    if (!historyItem.value?.id_timestamp) {
+    if (!historyItem.value) {
+        return null;
+    }
+
+    const sourceConversation = isFollowUpHistoryItem(historyItem.value)
+        ? promptStore.findPromptById(historyItem.value.source_conversation_id)
+        : historyItem.value;
+
+    if (!sourceConversation?.id_timestamp) {
         return null;
     }
 
     return {
-        id_timestamp: historyItem.value.id_timestamp,
-        prompt: historyItem.value.prompt,
-        answer: historyItem.value.answer,
-        model: historyItem.value.model,
+        id_timestamp: sourceConversation.id_timestamp,
+        prompt: sourceConversation.prompt,
+        answer: sourceConversation.answer,
+        model: sourceConversation.model,
     };
 })
 
@@ -789,8 +815,18 @@ const sendFollowUpQuestionNow = async () => {
         return;
     }
 
-    await submitPrompt(promptText, [sourceConversation], sourceConversation.id_timestamp, sourceSelection);
-    await promptStore.addFollowUpConversation(promptText, sourceConversation.id_timestamp, sourceSelection)
+    const savedPrompt = await submitPrompt(promptText, [sourceConversation], sourceConversation.id_timestamp, sourceSelection);
+    const savedFollowUpConversation = await promptStore.addFollowUpConversation(
+        promptText,
+        sourceConversation.id_timestamp,
+        sourceSelection,
+        savedPrompt?.id_timestamp
+    )
+
+    if (savedFollowUpConversation) {
+        promptStore.updateHistoryCard(savedFollowUpConversation)
+    }
+
     closeFollowUpComposer();
 }
 </script>

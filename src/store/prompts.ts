@@ -3,6 +3,7 @@ import {defineStore} from 'pinia'
 import {usePluginStore} from './plugin'
 import type { Conversation, FollowUpConversation } from '../settings'
 
+export type HistoryCardItem = Conversation | FollowUpConversation
 
 export const usePromptStore = defineStore('prompts',()=>{
     const pluginStore = usePluginStore()
@@ -10,7 +11,7 @@ export const usePromptStore = defineStore('prompts',()=>{
     const promptStats = ref<Record<string, any>>({})
     const followUpConversations = ref<FollowUpConversation[]>([])
     const selectedDate = ref(new Date().toISOString().split('T')[0])
-    const historyCard = ref<Conversation | null>(null)
+    const historyCard = ref<HistoryCardItem | null>(null)
 
     // 初始化时从插件设置里加载数据
     if (pluginStore.plugin) {
@@ -65,7 +66,12 @@ export const usePromptStore = defineStore('prompts',()=>{
         return newPrompt;
     }
 
-    async function addFollowUpConversation(question: string, sourceConversationId: string, sourceSelection: string) {
+    async function addFollowUpConversation(
+        question: string,
+        sourceConversationId: string,
+        sourceSelection: string,
+        responseConversationId?: string
+    ) {
         if (!pluginStore.plugin) return null;
 
         const followUpConversation: FollowUpConversation = {
@@ -74,6 +80,7 @@ export const usePromptStore = defineStore('prompts',()=>{
             source_conversation_id: sourceConversationId,
             source_selection: sourceSelection,
             created_at: new Date().toISOString(),
+            ...(responseConversationId ? { response_conversation_id: responseConversationId } : {}),
         };
 
         const newFollowUpConversations = [...followUpConversations.value, followUpConversation];
@@ -90,7 +97,7 @@ export const usePromptStore = defineStore('prompts',()=>{
         await syncSettings(promptStats.value, newFollowUpConversations);
     }
 
-    function updateHistoryCard(item: Conversation | null){
+    function updateHistoryCard(item: HistoryCardItem | null){
         historyCard.value = item
         // console.log('item被点击')
     }
