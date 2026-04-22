@@ -3,13 +3,13 @@
     <div class="flex-none px-4 pt-2 pb-2">
       <div class="flex items-center gap-2 h-8">
         <div v-if="!isSearchActive" class="ml-1 flex flex-1 items-center gap-1 overflow-hidden select-none">
-          <span class="inline-flex items-center rounded-full bg-[var(--background-modifier-hover)] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+          <span class="inline-flex items-center rounded-full bg-[var(--background-modifier-hover)] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
             Date
           </span>
           <!-- “>”符号 -->
-          <svg class="h-3 w-3 shrink-0 text-[var(--text-faint)]" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <!-- <svg class="h-3 w-3 shrink-0 text-[var(--text-faint)]" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M6 3.5L10.5 8L6 12.5"></path>
-          </svg>
+          </svg> -->
           <span class="truncate rounded-full border border-[var(--background-modifier-border)]px-2.5 py-1 text-[11px] font-medium text-[var(--text-normal)]">
             {{ selectedDate }}
           </span>
