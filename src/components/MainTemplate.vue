@@ -15,14 +15,26 @@
                 <div class="flex h-10 items-center justify-between border-b border-[var(--apple-border)] px-3">
                     <div class="inline-flex items-center gap-1 overflow-hidden select-none">
                         <span class="inline-flex items-center rounded-full bg-[var(--background-modifier-hover)] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
-                            History
-                        </span>
-                        <svg class="h-3 w-3 shrink-0 text-[var(--text-faint)]" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M6 3.5L10.5 8L6 12.5"></path>
-                        </svg>
-                        <span class="truncate text-xs font-medium text-[var(--text-muted)]">
                             Overview
                         </span>
+                        <svg
+                            class="h-3 w-3 shrink-0 rounded-sm p-0.5 text-[var(--text-faint)] transition-[background-color,transform] duration-150 hover:bg-[var(--background-modifier-hover)]"
+                            :class="isDashboardCollapsed ? '-rotate-90' : 'rotate-90'"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.75"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                            @click="toggleDashboardSection"
+                        >
+                            <path d="M6 3.5L10.5 8L6 12.5"></path>
+                        </svg>
+                        <!-- <span class="truncate text-xs font-medium text-[var(--text-muted)]">
+                            Overview
+                        </span> -->
+
                     </div>
 
                     <!--class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--background-modifier-hover)] hover:text-[var(--text-normal)]" -->
@@ -41,7 +53,10 @@
                 </div>
 
                 <!-- Header/Dashboard 区域：固定高度，带底部分割线 -->
-                <div class="flex-none w-full border-b border-[var(--apple-border)] pb-0">
+                <div
+                    v-show="!isDashboardCollapsed"
+                    class="flex-none w-full border-b border-[var(--apple-border)] pb-0"
+                >
                     <DataPanel :plugin="plugin"/>
                     <HeatMap/>
                 </div>
@@ -122,9 +137,14 @@ const props = defineProps<{
 
 const pluginStore = usePluginStore();
 const { isSidebarOpen } = storeToRefs(pluginStore);
+const isDashboardCollapsed = ref(false);
 
 const toggleSidebar = () => {
     pluginStore.toggleSidebar();
+};
+
+const toggleDashboardSection = () => {
+    isDashboardCollapsed.value = !isDashboardCollapsed.value;
 };
 
 // 侧边栏宽度控制
