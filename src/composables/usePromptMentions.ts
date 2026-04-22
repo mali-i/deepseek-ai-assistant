@@ -1,4 +1,4 @@
-import { computed, nextTick, ref, watch, type Ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch, type CSSProperties, type Ref } from 'vue';
 import type { Conversation } from '../settings';
 
 interface MentionState {
@@ -10,6 +10,7 @@ interface MentionState {
 interface MentionMenuPosition {
     top: number;
     left: number;
+    width: number;
     maxWidth: number;
 }
 
@@ -18,6 +19,7 @@ interface UsePromptMentionsOptions {
     textareaRef: Ref<HTMLTextAreaElement | null>;
     todayPromptItems: Ref<Conversation[]>;
     selectedReferences: Ref<Conversation[]>;
+    overlayTarget?: Ref<HTMLElement | null | undefined>;
 }
 
 export const buildPromptPreview = (text: string, maxLength = 36) => {
@@ -34,10 +36,12 @@ export function usePromptMentions({
     textareaRef,
     todayPromptItems,
     selectedReferences,
+    overlayTarget,
 }: UsePromptMentionsOptions) {
     const mentionState = ref<MentionState | null>(null);
     const activeMentionIndex = ref(0);
     const mentionMenuPosition = ref<MentionMenuPosition | null>(null);
+    const mentionMenuRootRef = ref<HTMLElement | null>(null);
     const mentionMenuListRef = ref<HTMLElement | null>(null);
 
     const filteredTodayPrompts = computed<Conversation[]>(() => {
@@ -75,23 +79,23 @@ export function usePromptMentions({
             : 'No remaining history conversations are available to be selected.';
     });
 
-    const mentionMenuStyle = computed(() => {
+    const mentionMenuStyle = computed<CSSProperties>(() => {
         if (!mentionMenuPosition.value) {
             return {
                 left: '16px',
-                top: '0px',
+                top: '16px',
                 width: '360px',
                 maxWidth: 'calc(100% - 32px)',
-                transform: 'translateY(calc(-100% - 4px))',
+                position: 'absolute',
             };
         }
 
         return {
             left: `${mentionMenuPosition.value.left}px`,
             top: `${mentionMenuPosition.value.top}px`,
-            width: '360px',
+            width: `${mentionMenuPosition.value.width}px`,
             maxWidth: `${mentionMenuPosition.value.maxWidth}px`,
-            transform: 'translateY(calc(-100% - 4px))',
+            position: 'absolute',
         };
     });
 
@@ -170,26 +174,47 @@ export function usePromptMentions({
             return;
         }
 
-        const container = textarea.parentElement;
-        if (!container) {
+        const positionRoot = overlayTarget?.value ?? textarea.parentElement;
+        if (!positionRoot) {
             mentionMenuPosition.value = null;
             return;
         }
 
+        const rootRect = positionRoot.getBoundingClientRect();
+        const textareaRect = textarea.getBoundingClientRect();
         const caret = getTextareaCaretCoordinates(textarea, mentionState.value.end);
+        const textareaStyle = window.getComputedStyle(textarea);
         const horizontalPadding = 16;
+        const verticalPadding = 16;
+        const verticalGap = 6;
         const preferredWidth = 360;
-        const availableWidth = Math.max(240, container.clientWidth - horizontalPadding * 2);
+        const preferredMenuHeight = 260;
+        const resolvedLineHeight = Number.parseFloat(textareaStyle.lineHeight);
+        const fallbackLineHeight = Number.parseFloat(textareaStyle.fontSize) * 1.4 || 20;
+        const caretLineHeight = Number.isFinite(resolvedLineHeight) ? resolvedLineHeight : fallbackLineHeight;
+        const availableWidth = Math.max(240, rootRect.width - horizontalPadding * 2);
         const popupWidth = Math.min(preferredWidth, availableWidth);
-        const maxLeft = Math.max(horizontalPadding, container.clientWidth - popupWidth - horizontalPadding);
-        const caretLeft = textarea.offsetLeft + caret.left;
-        const caretTop = textarea.offsetTop + caret.top;
+        const maxLeft = Math.max(horizontalPadding, rootRect.width - popupWidth - horizontalPadding);
+        const caretLeft = textareaRect.left - rootRect.left + caret.left;
+        const caretTop = textareaRect.top - rootRect.top + caret.top;
+        const spaceAbove = caretTop - verticalPadding;
+        const spaceBelow = rootRect.height - (caretTop + caretLineHeight) - verticalPadding;
+        const shouldPlaceAbove = spaceAbove >= preferredMenuHeight + verticalGap
+            || (spaceAbove > spaceBelow && spaceBelow < preferredMenuHeight + verticalGap);
+        const top = shouldPlaceAbove
+            ? Math.max(caretTop - preferredMenuHeight - verticalGap, verticalPadding)
+            : Math.min(caretTop + caretLineHeight + verticalGap, rootRect.height - preferredMenuHeight - verticalPadding);
 
         mentionMenuPosition.value = {
             left: Math.min(Math.max(caretLeft, horizontalPadding), maxLeft),
-            top: caretTop,
+            top,
+            width: popupWidth,
             maxWidth: availableWidth,
         };
+    };
+
+    const handleViewportChange = () => {
+        updateMentionMenuPosition();
     };
 
     const updateMentionState = () => {
@@ -324,12 +349,21 @@ export function usePromptMentions({
     watch(showMentionMenu, (visible) => {
         if (!visible) {
             mentionMenuPosition.value = null;
+            window.removeEventListener('resize', handleViewportChange);
+            window.removeEventListener('scroll', handleViewportChange, true);
             return;
         }
 
         activeMentionIndex.value = 0;
+        window.addEventListener('resize', handleViewportChange);
+        window.addEventListener('scroll', handleViewportChange, true);
         nextTick(updateMentionMenuPosition);
         nextTick(scrollActiveMentionIntoView);
+    });
+
+    onBeforeUnmount(() => {
+        window.removeEventListener('resize', handleViewportChange);
+        window.removeEventListener('scroll', handleViewportChange, true);
     });
 
     return {
@@ -338,6 +372,7 @@ export function usePromptMentions({
         showMentionMenu,
         emptyMentionText,
         mentionMenuStyle,
+        mentionMenuRootRef,
         mentionMenuListRef,
         clearMentionState,
         updateMentionState,

@@ -64,34 +64,37 @@
                     ></textarea>
 
                     <!-- 历史上下文弹层 -->
-                    <div
-                        v-if="showMentionMenu"
-                        class="absolute z-20 overflow-hidden rounded-xl border border-[var(--apple-border)] bg-[var(--background-primary)] shadow-xl"
-                        :style="mentionMenuStyle"
-                    >
-                        <div class="border-b border-[var(--apple-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
-                            Today conversations
-                        </div>
-                        <div ref="mentionMenuListRef" class="mention-menu-scroll h-56 overflow-y-auto overflow-x-auto py-0.5">
-                            <button
-                                v-for="(item, index) in filteredTodayPrompts"
-                                :key="item.id_timestamp"
-                                type="button"
-                                :data-mention-index="index"
-                                class="flex w-full min-w-0 appearance-none flex-col items-start gap-0.5 border-0 px-3 py-1.5 text-left shadow-none transition-colors"
-                                :class="index === activeMentionIndex ? 'bg-[var(--background-modifier-hover)]' : 'bg-transparent hover:bg-[var(--background-modifier-hover)]'"
-                                @mousedown.prevent="selectMention(item)"
-                            >
-                                <div class="flex w-full min-w-0 flex-col items-start gap-0.5 text-left">
-                                    <span class="block w-full break-words text-[13px] leading-5 text-[var(--text-normal)]">{{ buildPromptPreview(item.prompt, 80) }}</span>
+                    <Teleport :to="overlayTarget || 'body'" :disabled="!overlayTarget">
+                        <div
+                            v-if="showMentionMenu"
+                            ref="mentionMenuRootRef"
+                            class="absolute z-[1000] overflow-hidden rounded-xl border border-[var(--apple-border)] bg-[var(--background-primary)] shadow-xl"
+                            :style="mentionMenuStyle"
+                        >
+                            <div class="border-b border-[var(--apple-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
+                                Today conversations
+                            </div>
+                            <div ref="mentionMenuListRef" class="mention-menu-scroll h-56 overflow-y-auto overflow-x-auto py-0.5">
+                                <button
+                                    v-for="(item, index) in filteredTodayPrompts"
+                                    :key="item.id_timestamp"
+                                    type="button"
+                                    :data-mention-index="index"
+                                    class="flex w-full min-w-0 appearance-none flex-col items-start gap-0.5 border-0 px-3 py-1.5 text-left shadow-none transition-colors"
+                                    :class="index === activeMentionIndex ? 'bg-[var(--background-modifier-hover)]' : 'bg-transparent hover:bg-[var(--background-modifier-hover)]'"
+                                    @mousedown.prevent="selectMention(item)"
+                                >
+                                    <div class="flex w-full min-w-0 flex-col items-start gap-0.5 text-left">
+                                        <span class="block w-full break-words text-[13px] leading-5 text-[var(--text-normal)]">{{ buildPromptPreview(item.prompt, 80) }}</span>
+                                    </div>
+                                    <div class="w-full break-words text-left text-[11px] leading-4 text-[var(--text-muted)] line-clamp-2">{{ item.answer }}</div>
+                                </button>
+                                <div v-if="!filteredTodayPrompts.length" class="px-3 py-3 text-left text-sm text-[var(--text-muted)] break-words">
+                                    {{ emptyMentionText }}
                                 </div>
-                                <div class="w-full break-words text-left text-[11px] leading-4 text-[var(--text-muted)] line-clamp-2">{{ item.answer }}</div>
-                            </button>
-                            <div v-if="!filteredTodayPrompts.length" class="px-3 py-3 text-left text-sm text-[var(--text-muted)] break-words">
-                                {{ emptyMentionText }}
                             </div>
                         </div>
-                    </div>
+                    </Teleport>
                     
                     <!-- Controls Bar -->
                      <!-- 目前使用了绝对定位 -->
@@ -145,7 +148,7 @@
     </div>
 </template>
 <script setup lang="ts">
-import { ref, computed , watch, nextTick, onMounted, onUnmounted} from 'vue';
+import { ref, computed , watch, nextTick, onMounted, onUnmounted, Teleport } from 'vue';
 import { OpenAI } from 'openai';
 import {MarkdownRenderer, Notice} from 'obsidian';
 import {usePromptStore} from '../store/prompts'
@@ -240,6 +243,7 @@ const {
     showMentionMenu,
     emptyMentionText,
     mentionMenuStyle,
+    mentionMenuRootRef,
     mentionMenuListRef,
     clearMentionState,
     updateMentionState,
@@ -252,6 +256,7 @@ const {
     textareaRef,
     todayPromptItems,
     selectedReferences,
+    overlayTarget: computed(() => props.overlayTarget),
 });
 
 const adjustHeight = () => {
