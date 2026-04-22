@@ -66,8 +66,8 @@
                         :key="item.id_timestamp"
                         type="button"
                         :data-mention-index="index"
-                        class="flex w-full min-w-0 appearance-none flex-col items-start gap-0.5 border-0 bg-transparent px-3 py-1.5 text-left shadow-none transition-colors"
-                        :class="index === activeMentionIndex ? 'bg-[var(--background-modifier-hover)]' : 'hover:bg-[var(--background-modifier-hover)]'"
+                        class="flex w-full min-w-0 appearance-none flex-col items-start gap-0.5 border-0 px-3 py-1.5 text-left shadow-none transition-colors"
+                        :class="index === activeMentionIndex ? 'bg-[var(--background-modifier-hover)]' : 'bg-transparent hover:bg-[var(--background-modifier-hover)]'"
                         @mousedown.prevent="selectMention(item)"
                     >
                         <div class="flex w-full min-w-0 flex-col items-start gap-0.5 text-left">

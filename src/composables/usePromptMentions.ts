@@ -327,6 +327,7 @@ export function usePromptMentions({
             return;
         }
 
+        activeMentionIndex.value = 0;
         nextTick(updateMentionMenuPosition);
         nextTick(scrollActiveMentionIntoView);
     });
