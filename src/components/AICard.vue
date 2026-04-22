@@ -263,6 +263,15 @@ watch(inputContent, () => {
     nextTick(updateMentionState);
 });
 
+watch(historyItem, (item) => {
+    if (item) {
+        return;
+    }
+
+    hasResponse.value = false;
+    clearSelectionAction();
+});
+
 watch(historyAnswer,async ()=>{
     // console.log('监听answerContainerRef.value;
     const container = document.querySelector('.answer-field') as HTMLElement

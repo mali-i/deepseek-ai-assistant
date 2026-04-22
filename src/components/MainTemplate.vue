@@ -114,9 +114,29 @@
                         <svg class="h-3 w-3 shrink-0 text-[var(--text-faint)]" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M6 3.5L10.5 8L6 12.5"></path>
                         </svg>
-                        <span v-if="selectedPromptLabel" class="truncate text-xs font-medium text-[var(--text-normal)]">
-                            {{ selectedPromptLabel }}
-                        </span>
+                        <div v-if="selectedPromptLabel" class="group inline-flex min-w-0 items-center gap-1 overflow-hidden">
+                            <span
+                                class="truncate text-xs font-medium text-[var(--text-normal)] cursor-default"
+                                :title="selectedPromptLabel"
+                                @click="clearCurrentConversation"
+                            >
+                                {{ selectedPromptLabel }}
+                            </span>
+                            <button
+                                type="button"
+                                class="inline-flex h-4 w-4 shrink-0 appearance-none items-center justify-center border-0 bg-transparent p-0 text-[var(--text-muted)] opacity-0 shadow-none outline-none transition-opacity duration-150 group-hover:opacity-100 focus:outline-none focus:ring-0"
+                                style="border: none;"
+                                title="Clear conversation"
+                                @click="clearCurrentConversation"
+                            >
+                                <div class="flex h-4 w-4 items-center justify-center rounded-none transition-all duration-150 hover:bg-[var(--background-modifier-hover)] hover:text-[var(--text-normal)] hover:shadow-sm">
+                                    <svg class="h-3 w-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" aria-hidden="true">
+                                        <path d="M4.5 4.5l7 7"></path>
+                                        <path d="M11.5 4.5l-7 7"></path>
+                                    </svg>
+                                </div>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -166,6 +186,10 @@ const toggleSidebar = () => {
 
 const toggleDashboardSection = () => {
     isDashboardCollapsed.value = !isDashboardCollapsed.value;
+};
+
+const clearCurrentConversation = () => {
+    promptStore.updateHistoryCard(null);
 };
 
 // 侧边栏宽度控制
