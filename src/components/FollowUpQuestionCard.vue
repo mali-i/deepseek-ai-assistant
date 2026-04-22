@@ -77,7 +77,27 @@
                     </div>
                 </div>
             </div>
-            <div class="mt-3 flex items-center justify-end gap-2">
+            <div class="mt-3 flex items-center gap-2">
+                <div class="relative min-w-0 flex-1">
+                    <select
+                        :value="selectedModelId"
+                        class="w-full appearance-none rounded-lg border border-[var(--background-modifier-border)] bg-[var(--background-primary)] px-3 py-1.5 pr-8 text-xs font-medium text-[var(--text-normal)] outline-none transition-colors focus:border-apple-blue"
+                        @change="emit('update:selectedModelId', ($event.target as HTMLSelectElement).value)"
+                    >
+                        <option
+                            v-for="model in availableModels"
+                            :key="model.id"
+                            :value="model.id"
+                        >
+                            {{ model.name }}
+                        </option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[var(--text-muted)]">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 9l6 6 6-6"></path>
+                        </svg>
+                    </div>
+                </div>
                 <button
                     class="rounded-lg px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--background-modifier-hover)] hover:text-[var(--text-normal)]"
                     @click.stop="$emit('close')"
@@ -97,7 +117,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import type { Conversation } from '../settings';
+import type { Conversation, ModelConfig } from '../settings';
 import { buildPromptPreview, usePromptMentions } from '../composables/usePromptMentions';
 
 interface SelectionActionState {
@@ -113,6 +133,8 @@ const props = defineProps<{
     followUpQuestionText: string;
     followUpReferences: Conversation[];
     todayPromptItems: Conversation[];
+    availableModels: ModelConfig[];
+    selectedModelId: string;
 }>();
 
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
@@ -171,6 +193,7 @@ const emit = defineEmits<{
     send: [];
     'update:followUpQuestionText': [value: string];
     'update:followUpReferences': [value: Conversation[]];
+    'update:selectedModelId': [value: string];
 }>();
 </script>
 

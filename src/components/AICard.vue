@@ -18,11 +18,14 @@
                 :follow-up-question-text="followUpQuestionText"
                 :follow-up-references="followUpSelectedReferences"
                 :today-prompt-items="todayPromptItems"
+                :available-models="availableModels"
+                :selected-model-id="chatModel"
                 @open="openFollowUpComposer"
                 @close="closeFollowUpComposer"
                 @send="sendFollowUpQuestionNow"
                 @update:follow-up-question-text="followUpQuestionText = $event"
                 @update:follow-up-references="followUpSelectedReferences = $event"
+                @update:selected-model-id="chatModel = $event"
             />
         </div>
 
