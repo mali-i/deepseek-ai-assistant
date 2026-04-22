@@ -1,16 +1,26 @@
 // 单条对话条目类型
-interface Conversation {
+export interface Conversation {
     id_timestamp: string;
     prompt: string;
     answer: string;
     model?: string;
-  }
+    source_conversation_id?: string; // 主追问来源问题 id_timestamp
+    context_refs?: string[];  // 通过 @ 引用的历史对话 id_timestamp 列表
+}
+
+export interface FollowUpDraft {
+    id: string;
+    draft_question: string;
+    source_conversation_id: string;
+    source_selection: string;
+    created_at: string;
+}
   
   // 日期对应的完整数据
-  interface DateData {
+export interface DateData {
     num: number;             // 当日的对话总数量
     prompt_content: Conversation[];   // 对话列表
-  }
+}
   
   // 完整数据结构类型 (日期为动态键名)
 export interface DataStructure {
@@ -34,6 +44,7 @@ export interface SettingsInterfaceType{
 
     models: ModelConfig[]; // 新的主要配置项
     promptStats: DataStructure;
+    followUpDrafts: FollowUpDraft[];
 }
 
 export const DEFAULT_SETTINGS: SettingsInterfaceType = {
@@ -55,5 +66,6 @@ export const DEFAULT_SETTINGS: SettingsInterfaceType = {
             providerUrl: 'https://platform.deepseek.com/'
         }
     ],
-    promptStats: {}
+    promptStats: {},
+    followUpDrafts: []
 }

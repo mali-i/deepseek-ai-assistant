@@ -12,6 +12,64 @@
                 <ThinkingClue />
             </div>
             <div ref="answerContainerRef" class="answer-field absolute inset-0 overflow-y-auto p-6 font-sans leading-relaxed select-text cursor-text prose dark:prose-invert max-w-none"></div>
+            <div
+                v-if="selectionAction"
+                class="absolute z-20"
+                :style="{
+                    top: `${selectionAction.top}px`,
+                    left: `${selectionAction.left}px`,
+                    transform: 'translate(-50%, -100%)'
+                }"
+            >
+                <button
+                    v-if="!isDraftComposerOpen"
+                    class="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--apple-border)] bg-[var(--background-primary)] text-[var(--text-normal)] shadow-lg transition-colors hover:border-apple-blue hover:text-apple-blue"
+                    title="Create follow-up"
+                    @mousedown.prevent
+                    @click.stop="openDraftComposer"
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14"></path>
+                        <path d="M5 12h14"></path>
+                    </svg>
+                </button>
+
+                <div
+                    v-else
+                    class="w-[320px] rounded-2xl border border-[var(--apple-border)] bg-[var(--background-primary)] p-3 shadow-2xl"
+                    @mousedown.prevent
+                >
+                    <div class="mb-2 text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)]">Follow-up branch</div>
+                    <div class="mb-3 rounded-xl bg-[var(--background-secondary)] px-3 py-2 text-xs text-[var(--text-muted)] line-clamp-3">
+                        {{ selectionAction.text }}
+                    </div>
+                    <textarea
+                        v-model="draftQuestion"
+                        class="min-h-[88px] w-full resize-none rounded-xl border border-[var(--background-modifier-border)] bg-[var(--background-primary)] px-3 py-2 text-sm leading-relaxed text-[var(--text-normal)] outline-none transition-colors focus:border-apple-blue"
+                        placeholder="Capture the next question from this answer..."
+                    ></textarea>
+                    <div class="mt-3 flex items-center justify-end gap-2">
+                        <button
+                            class="rounded-lg px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--background-modifier-hover)] hover:text-[var(--text-normal)]"
+                            @click.stop="closeDraftComposer"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            class="rounded-lg border border-[var(--apple-border)] px-3 py-1.5 text-xs font-medium text-[var(--text-normal)] transition-colors hover:border-apple-blue hover:text-apple-blue"
+                            @click.stop="saveDraft"
+                        >
+                            Save
+                        </button>
+                        <button
+                            class="rounded-lg bg-apple-blue px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-600"
+                            @click.stop="sendDraftNow"
+                        >
+                            Ask now
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Input Area -->
@@ -152,6 +210,12 @@ interface MentionMenuPosition {
     maxWidth: number;
 }
 
+interface SelectionActionState {
+    text: string;
+    top: number;
+    left: number;
+}
+
 const props = defineProps<{
     plugin: any
 }>();
@@ -175,12 +239,16 @@ onMounted(() => {
     if (props.plugin.registerSettingsListener) {
         props.plugin.registerSettingsListener(updateModels);
     }
+
+    document.addEventListener('selectionchange', updateAnswerSelection);
 });
 
 onUnmounted(() => {
     if (props.plugin.unregisterSettingsListener) {
         props.plugin.unregisterSettingsListener(updateModels);
     }
+
+    document.removeEventListener('selectionchange', updateAnswerSelection);
 });
 
 const inputContent = ref('');
@@ -196,10 +264,25 @@ const selectedReferences = ref<PromptReference[]>([]);
 const mentionState = ref<MentionState | null>(null);
 const activeMentionIndex = ref(0);
 const mentionMenuPosition = ref<MentionMenuPosition | null>(null);
+const selectionAction = ref<SelectionActionState | null>(null);
+const isDraftComposerOpen = ref(false);
+const draftQuestion = ref('');
 
 const historyItem = computed(() => promptStore.historyCard)
 const historyAnswer = computed(()=>{
     return historyItem.value?.answer || ''
+})
+const activeSourceConversation = computed<PromptReference | null>(() => {
+    if (!historyItem.value?.id_timestamp) {
+        return null;
+    }
+
+    return {
+        id_timestamp: historyItem.value.id_timestamp,
+        prompt: historyItem.value.prompt,
+        answer: historyItem.value.answer,
+        model: historyItem.value.model,
+    };
 })
 
 const todayPromptItems = computed<PromptReference[]>(() => {
@@ -332,6 +415,70 @@ const clearMentionState = () => {
     mentionState.value = null;
     activeMentionIndex.value = 0;
     mentionMenuPosition.value = null;
+};
+
+const clearSelectionAction = () => {
+    selectionAction.value = null;
+    isDraftComposerOpen.value = false;
+    draftQuestion.value = '';
+};
+
+const updateAnswerSelection = () => {
+    if (isDraftComposerOpen.value) {
+        return;
+    }
+
+    const container = answerContainerRef.value;
+    const host = container?.parentElement;
+    const selection = window.getSelection();
+
+    if (!container || !host || !selection || selection.rangeCount === 0 || selection.isCollapsed || !activeSourceConversation.value) {
+        selectionAction.value = null;
+        return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const ancestor = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+        ? range.commonAncestorContainer.parentNode
+        : range.commonAncestorContainer;
+
+    if (!ancestor || !container.contains(ancestor)) {
+        selectionAction.value = null;
+        return;
+    }
+
+    const text = selection.toString().replace(/\s+/g, ' ').trim();
+    if (!text) {
+        selectionAction.value = null;
+        return;
+    }
+
+    const rangeRect = range.getBoundingClientRect();
+    const hostRect = host.getBoundingClientRect();
+    if (!rangeRect.width && !rangeRect.height) {
+        selectionAction.value = null;
+        return;
+    }
+
+    selectionAction.value = {
+        text,
+        left: Math.min(Math.max(rangeRect.left - hostRect.left + rangeRect.width / 2, 32), hostRect.width - 32),
+        top: Math.max(rangeRect.top - hostRect.top - 12, 12),
+    };
+};
+
+const openDraftComposer = () => {
+    if (!selectionAction.value) {
+        return;
+    }
+
+    isDraftComposerOpen.value = true;
+    draftQuestion.value = '';
+};
+
+const closeDraftComposer = () => {
+    clearSelectionAction();
+    window.getSelection()?.removeAllRanges();
 };
 
 const getTextareaCaretCoordinates = (textarea: HTMLTextAreaElement, position: number) => {
@@ -518,22 +665,15 @@ const handleMentionKeydown = (event: KeyboardEvent) => {
     }
 };
 
-const buildContextMessages = () => {
-    const orderedReferences = [...selectedReferences.value].sort((left, right) => Number(left.id_timestamp) - Number(right.id_timestamp));
-
-    return orderedReferences.flatMap((item) => {
-        return [
-            { role: 'user' as const, content: item.prompt },
-            { role: 'assistant' as const, content: item.answer },
-        ];
-    });
-};
-
 const handleCommand = (command: string | number | object) => {
   new Notice(`click on item ${command}`)
 }
 
-const submit = async () => {
+const submitPrompt = async (
+    promptText: string,
+    references: PromptReference[] = selectedReferences.value,
+    sourceConversationId?: string
+) => {
     const container = answerContainerRef.value;
     if(container) container.empty();
     isLoading.value = true;  // 开始加载
@@ -560,10 +700,16 @@ const submit = async () => {
         });
 
         let fullResponse = '';
+        const orderedReferences = [...references].sort((left, right) => Number(left.id_timestamp) - Number(right.id_timestamp));
         const messages = [
             {role: 'system' as const, content:'你是一个AI助手，请根据用户的问题给出回答'},
-            ...buildContextMessages(),
-            {role: 'user' as const, content: inputContent.value}
+            ...orderedReferences.flatMap((item) => {
+                return [
+                    { role: 'user' as const, content: item.prompt },
+                    { role: 'assistant' as const, content: item.answer },
+                ];
+            }),
+            {role: 'user' as const, content: promptText}
         ];
 
         // openAI的Chat Completions API，定义了现代聊天式大模型交互的基本格式
@@ -596,13 +742,21 @@ const submit = async () => {
         }
 
         if (fullResponse) {
-            // 保存对话到 store
-            promptStore.addPrompt(inputContent.value, fullResponse, selectedModelConfig.id)
-            // 清空输入框
-            inputContent.value = '';
-            selectedReferences.value = [];
-            clearMentionState();
+            const contextRefIds = orderedReferences.map((item) => item.id_timestamp);
+            const savedPrompt = await promptStore.addPrompt(
+                promptText,
+                fullResponse,
+                selectedModelConfig.id,
+                contextRefIds,
+                sourceConversationId || orderedReferences[0]?.id_timestamp
+            )
+
+            if (savedPrompt) {
+                promptStore.updateHistoryCard(savedPrompt)
+            }
+
             hasResponse.value = true;
+            return savedPrompt;
         }
     } catch (error: any) {
         isThinking.value = false;
@@ -630,6 +784,45 @@ const submit = async () => {
         isLoading.value = false;  // 结束加载
         isThinking.value = false;
     }
+}
+
+const submit = async () => {
+    const promptText = inputContent.value.trim();
+    if (!promptText) {
+        return;
+    }
+
+    const references = [...selectedReferences.value];
+    await submitPrompt(promptText, references, references[0]?.id_timestamp);
+    inputContent.value = '';
+    selectedReferences.value = [];
+    clearMentionState();
+    clearSelectionAction();
+}
+
+const saveDraft = async () => {
+    const promptText = draftQuestion.value.trim();
+    const sourceConversation = activeSourceConversation.value;
+
+    if (!promptText || !selectionAction.value || !sourceConversation) {
+        return;
+    }
+
+    await promptStore.addFollowUpDraft(promptText, sourceConversation.id_timestamp, selectionAction.value.text)
+    new Notice('Follow-up saved')
+    closeDraftComposer();
+}
+
+const sendDraftNow = async () => {
+    const promptText = draftQuestion.value.trim();
+    const sourceConversation = activeSourceConversation.value;
+
+    if (!promptText || !selectionAction.value || !sourceConversation) {
+        return;
+    }
+
+    await submitPrompt(promptText, [sourceConversation], sourceConversation.id_timestamp);
+    closeDraftComposer();
 }
 </script>
 
