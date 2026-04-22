@@ -16,10 +16,13 @@
                 :selection-action="selectionAction"
                 :is-follow-up-composer-open="isFollowUpComposerOpen"
                 :follow-up-question-text="followUpQuestionText"
+                :follow-up-references="followUpSelectedReferences"
+                :today-prompt-items="todayPromptItems"
                 @open="openFollowUpComposer"
                 @close="closeFollowUpComposer"
                 @send="sendFollowUpQuestionNow"
                 @update:follow-up-question-text="followUpQuestionText = $event"
+                @update:follow-up-references="followUpSelectedReferences = $event"
             />
         </div>
 
@@ -199,6 +202,7 @@ const selectedReferences = ref<Conversation[]>([]);
 const selectionAction = ref<SelectionActionState | null>(null);
 const isFollowUpComposerOpen = ref(false);
 const followUpQuestionText = ref('');
+const followUpSelectedReferences = ref<Conversation[]>([]);
 
 const historyItem = computed(() => promptStore.historyCard)
 const historyAnswer = computed(()=>{
@@ -290,6 +294,7 @@ const clearSelectionAction = () => {
     selectionAction.value = null;
     isFollowUpComposerOpen.value = false;
     followUpQuestionText.value = '';
+    followUpSelectedReferences.value = [];
 };
 
 const updateAnswerSelection = () => {
@@ -359,6 +364,7 @@ const openFollowUpComposer = () => {
 
     isFollowUpComposerOpen.value = true;
     followUpQuestionText.value = '';
+    followUpSelectedReferences.value = [];
 };
 
 const closeFollowUpComposer = () => {
@@ -369,6 +375,20 @@ const closeFollowUpComposer = () => {
 const handleCommand = (command: string | number | object) => {
   new Notice(`click on item ${command}`)
 }
+
+const mergeReferences = (...groups: Conversation[][]) => {
+    const uniqueReferences = new Map<string, Conversation>();
+
+    groups.flat().forEach((item) => {
+        if (!item?.id_timestamp || uniqueReferences.has(item.id_timestamp)) {
+            return;
+        }
+
+        uniqueReferences.set(item.id_timestamp, item);
+    });
+
+    return Array.from(uniqueReferences.values());
+};
 
 const submitPrompt = async (
     promptText: string,
@@ -525,7 +545,8 @@ const sendFollowUpQuestionNow = async () => {
         return;
     }
 
-    await submitPrompt(promptText, [sourceConversation], sourceConversation.id_timestamp, sourceSelection);
+    const references = mergeReferences([sourceConversation], followUpSelectedReferences.value);
+    await submitPrompt(promptText, references, sourceConversation.id_timestamp, sourceSelection);
     closeFollowUpComposer();
 }
 </script>
