@@ -72,19 +72,20 @@
                         <div class="border-b border-[var(--apple-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
                             Today conversations
                         </div>
-                        <div class="mention-menu-scroll max-h-64 overflow-y-auto overflow-x-auto py-1">
+                        <div ref="mentionMenuListRef" class="mention-menu-scroll h-56 overflow-y-auto overflow-x-auto py-0.5">
                             <button
                                 v-for="(item, index) in filteredTodayPrompts"
                                 :key="item.id_timestamp"
                                 type="button"
-                                class="flex w-full min-w-0 flex-col items-start gap-1 px-3 py-2 text-left transition-colors"
+                                :data-mention-index="index"
+                                class="flex w-full min-w-0 appearance-none flex-col items-start gap-0.5 border-0 bg-transparent px-3 py-1.5 text-left shadow-none transition-colors"
                                 :class="index === activeMentionIndex ? 'bg-[var(--background-modifier-hover)]' : 'hover:bg-[var(--background-modifier-hover)]'"
                                 @mousedown.prevent="selectMention(item)"
                             >
-                                <div class="flex w-full min-w-0 flex-col items-start gap-1 text-left">
-                                    <span class="block w-full break-words text-sm text-[var(--text-normal)]">{{ buildPromptPreview(item.prompt, 80) }}</span>
+                                <div class="flex w-full min-w-0 flex-col items-start gap-0.5 text-left">
+                                    <span class="block w-full break-words text-[13px] leading-5 text-[var(--text-normal)]">{{ buildPromptPreview(item.prompt, 80) }}</span>
                                 </div>
-                                <div class="w-full break-words text-left text-xs text-[var(--text-muted)] line-clamp-2">{{ item.answer }}</div>
+                                <div class="w-full break-words text-left text-[11px] leading-4 text-[var(--text-muted)] line-clamp-2">{{ item.answer }}</div>
                             </button>
                             <div v-if="!filteredTodayPrompts.length" class="px-3 py-3 text-left text-sm text-[var(--text-muted)] break-words">
                                 {{ emptyMentionText }}
@@ -239,6 +240,7 @@ const {
     showMentionMenu,
     emptyMentionText,
     mentionMenuStyle,
+    mentionMenuListRef,
     clearMentionState,
     updateMentionState,
     handleCaretChange,

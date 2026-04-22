@@ -38,6 +38,7 @@ export function usePromptMentions({
     const mentionState = ref<MentionState | null>(null);
     const activeMentionIndex = ref(0);
     const mentionMenuPosition = ref<MentionMenuPosition | null>(null);
+    const mentionMenuListRef = ref<HTMLElement | null>(null);
 
     const filteredTodayPrompts = computed<Conversation[]>(() => {
         if (!mentionState.value) {
@@ -250,20 +251,40 @@ export function usePromptMentions({
         selectedReferences.value = selectedReferences.value.filter((item) => item.id_timestamp !== id);
     };
 
+    const scrollActiveMentionIntoView = () => {
+        const list = mentionMenuListRef.value;
+        if (!list || !filteredTodayPrompts.value.length) {
+            return;
+        }
+
+        const activeItem = list.querySelector<HTMLElement>(`[data-mention-index="${activeMentionIndex.value}"]`);
+        activeItem?.scrollIntoView({ block: 'nearest' });
+    };
+
     const handleMentionKeydown = (event: KeyboardEvent) => {
         if (!showMentionMenu.value) {
             return;
         }
 
+        const itemCount = filteredTodayPrompts.value.length;
+
         if (event.key === 'ArrowDown') {
+            if (!itemCount) {
+                return;
+            }
+
             event.preventDefault();
-            activeMentionIndex.value = (activeMentionIndex.value + 1) % filteredTodayPrompts.value.length;
+            activeMentionIndex.value = (activeMentionIndex.value + 1) % itemCount;
             return;
         }
 
         if (event.key === 'ArrowUp') {
+            if (!itemCount) {
+                return;
+            }
+
             event.preventDefault();
-            activeMentionIndex.value = (activeMentionIndex.value - 1 + filteredTodayPrompts.value.length) % filteredTodayPrompts.value.length;
+            activeMentionIndex.value = (activeMentionIndex.value - 1 + itemCount) % itemCount;
             return;
         }
 
@@ -293,6 +314,11 @@ export function usePromptMentions({
         }
 
         nextTick(updateMentionMenuPosition);
+        nextTick(scrollActiveMentionIntoView);
+    });
+
+    watch(activeMentionIndex, () => {
+        nextTick(scrollActiveMentionIntoView);
     });
 
     watch(showMentionMenu, (visible) => {
@@ -302,6 +328,7 @@ export function usePromptMentions({
         }
 
         nextTick(updateMentionMenuPosition);
+        nextTick(scrollActiveMentionIntoView);
     });
 
     return {
@@ -310,6 +337,7 @@ export function usePromptMentions({
         showMentionMenu,
         emptyMentionText,
         mentionMenuStyle,
+        mentionMenuListRef,
         clearMentionState,
         updateMentionState,
         handleCaretChange,
