@@ -31,7 +31,7 @@
                     v-for="item in followUpReferences"
                     :key="item.id_timestamp"
                     class="max-w-full inline-flex items-center gap-2 rounded-lg border border-[var(--apple-border)] bg-[var(--background-primary)] px-3 py-1 text-xs text-[var(--text-normal)] transition-colors hover:border-apple-blue"
-                    @click="$emit('update:followUpReferences', followUpReferences.filter((reference) => reference.id_timestamp !== item.id_timestamp))"
+                    @click="removeReference(item.id_timestamp)"
                     type="button"
                     :title="item.prompt"
                 >
@@ -137,6 +137,7 @@ const {
     mentionMenuStyle,
     handleCaretChange,
     selectMention,
+    removeReference,
     handleMentionKeydown,
 } = usePromptMentions({
     inputContent: followUpQuestionTextModel,

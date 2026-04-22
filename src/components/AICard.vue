@@ -62,7 +62,6 @@
                     <!-- 历史上下文弹层 -->
                     <div
                         v-if="showMentionMenu"
-                        ref="mentionMenuRef"
                         class="absolute z-20 overflow-hidden rounded-xl border border-[var(--apple-border)] bg-[var(--background-primary)] shadow-xl"
                         :style="mentionMenuStyle"
                     >
@@ -197,7 +196,6 @@ const promptStore = usePromptStore()
 const chatModel = ref(availableModels.value[0]?.id || 'deepseek-reasoner')
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const answerContainerRef = ref<HTMLElement | null>(null);
-const mentionMenuRef = ref<HTMLElement | null>(null);
 const selectedReferences = ref<Conversation[]>([]);
 const selectionAction = ref<SelectionActionState | null>(null);
 const isFollowUpComposerOpen = ref(false);
@@ -217,16 +215,7 @@ const activeSourceConversation = computed<Conversation | null>(() => {
         ? promptStore.findPromptById(historyItem.value.source_conversation_id)
         : historyItem.value;
 
-    if (!sourceConversation?.id_timestamp) {
-        return null;
-    }
-
-    return {
-        id_timestamp: sourceConversation.id_timestamp,
-        prompt: sourceConversation.prompt,
-        answer: sourceConversation.answer,
-        model: sourceConversation.model,
-    };
+    return sourceConversation?.id_timestamp ? sourceConversation : null;
 })
 
 const todayPromptItems = computed<Conversation[]>(() => {
@@ -237,7 +226,6 @@ const todayPromptItems = computed<Conversation[]>(() => {
 });
 
 const {
-    mentionState,
     activeMentionIndex,
     filteredTodayPrompts,
     showMentionMenu,
@@ -271,7 +259,7 @@ watch(inputContent, () => {
     nextTick(adjustHeight);
     nextTick(updateMentionState);
 });
-answerContainerRef.value;
+
 watch(historyAnswer,async ()=>{
     // console.log('监听answerContainerRef.value;
     const container = document.querySelector('.answer-field') as HTMLElement
@@ -371,10 +359,6 @@ const closeFollowUpComposer = () => {
     clearSelectionAction();
     window.getSelection()?.removeAllRanges();
 };
-
-const handleCommand = (command: string | number | object) => {
-  new Notice(`click on item ${command}`)
-}
 
 const mergeReferences = (...groups: Conversation[][]) => {
     const uniqueReferences = new Map<string, Conversation>();

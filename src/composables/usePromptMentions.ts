@@ -123,7 +123,6 @@ export function usePromptMentions({
             'fontStretch',
             'fontSize',
             'fontSizeAdjust',
-            'lineHeight',
             'fontFamily',
             'textAlign',
             'textTransform',
@@ -157,7 +156,6 @@ export function usePromptMentions({
         const coordinates = {
             left: marker.offsetLeft - textarea.scrollLeft,
             top: marker.offsetTop - textarea.scrollTop,
-            lineHeight: parseFloat(computedStyle.lineHeight) || parseFloat(computedStyle.fontSize) * 1.4,
         };
 
         document.body.removeChild(mirror);
@@ -307,15 +305,12 @@ export function usePromptMentions({
     });
 
     return {
-        mentionState,
         activeMentionIndex,
-        mentionMenuPosition,
         filteredTodayPrompts,
         showMentionMenu,
         emptyMentionText,
         mentionMenuStyle,
         clearMentionState,
-        updateMentionMenuPosition,
         updateMentionState,
         handleCaretChange,
         selectMention,
