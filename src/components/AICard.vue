@@ -93,20 +93,21 @@
                     </div>
                     
                     <!-- Controls Bar -->
-                    <div class="absolute bottom-3 right-3 left-3 flex justify-between items-center">
+                     <!-- 目前使用了绝对定位 -->
+                    <div class="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between rounded-md border border-[var(--background-modifier-border)]/35 bg-[var(--background-primary)]/88 px-2 py-1 backdrop-blur-[2px]">
                         <!-- Model Selector -->
                         <div class="relative group">
-                            <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-[var(--apple-border)]">
+                            <div class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[var(--text-muted)] transition-colors cursor-pointer hover:bg-[var(--background-modifier-hover)] hover:text-[var(--text-normal)]">
                                 <select 
                                     v-model="chatModel" 
-                                    class="appearance-none bg-transparent border-none text-[12px] font-medium text-[var(--text-normal)] cursor-pointer pr-4 focus:outline-none font-sans"
+                                    class="appearance-none bg-transparent border-none shadow-none ring-0 outline-none text-[11px] font-medium text-[var(--text-normal)] cursor-pointer pr-3 focus:border-none focus:shadow-none focus:ring-0 focus:outline-none font-sans"
                                 >
                                     <option v-for="model in availableModels" :key="model.id" :value="model.id">
                                         {{ model.name }}
                                     </option>
                                 </select>
-                                <div class="absolute right-2.5 pointer-events-none text-[var(--text-muted)]">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <div class="absolute right-0 pointer-events-none text-[var(--text-muted)]">
+                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M6 9l6 6 6-6"/>
                                     </svg>
                                 </div>
@@ -115,23 +116,25 @@
 
                         <!-- Send Button -->
                         <button 
-                            class="h-8 px-4 bg-apple-blue text-white border-none rounded-full cursor-pointer text-[13px] font-semibold transition-all duration-200 flex items-center justify-center shadow-sm hover:bg-blue-600 hover:shadow-md active:scale-95 disabled:bg-[var(--background-modifier-border)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100" 
+                            class="h-6 min-w-6 px-2 bg-transparent text-[var(--text-muted)] border border-transparent rounded-md cursor-pointer text-[11px] font-medium transition-all duration-200 flex items-center justify-center hover:bg-apple-blue/10 hover:text-apple-blue active:scale-95 disabled:bg-transparent disabled:text-[var(--text-muted)] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100" 
                             @click="submit"
+                            title="Send"
+                            aria-label="Send"
                             :disabled="isLoading || !inputContent.trim()"
                         >
                             <span v-if="!isLoading" class="flex items-center gap-1">
-                                Send
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <span class="text-[11px] leading-none">Send</span>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="22" y1="2" x2="11" y2="13"></line>
                                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                                 </svg>
                             </span>
-                            <span v-else class="flex items-center gap-2">
-                                <svg class="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <span v-else class="flex items-center gap-1">
+                                <svg class="animate-spin h-3 w-3 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Thinking
+                                <span class="text-[11px] leading-none">Thinking</span>
                             </span>
                         </button>
                     </div>
