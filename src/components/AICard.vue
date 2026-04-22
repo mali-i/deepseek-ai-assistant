@@ -399,6 +399,28 @@ const mergeReferences = (...groups: Conversation[][]) => {
     return Array.from(uniqueReferences.values());
 };
 
+const buildReferenceContextMessage = (references: Conversation[]) => {
+    if (!references.length) {
+        return null;
+    }
+
+    return {
+        role: 'system' as const,
+        content: [
+            '以下内容是用户通过 @ 主动引用的历史对话上下文。',
+            '这些内容仅作为当前问题的补充背景，不要把它们当作需要继续续写的对话。',
+            '如果当前问题明显依赖这些引用，请优先结合引用内容作答。',
+            '',
+            ...references.flatMap((item, index) => [
+                `[@引用 ${index + 1}]`,
+                `问题：${item.prompt}`,
+                `回答：${item.answer}`,
+                '',
+            ]),
+        ].join('\n'),
+    };
+};
+
 const submitPrompt = async (
     promptText: string,
     references: Conversation[] = selectedReferences.value,
@@ -432,8 +454,10 @@ const submitPrompt = async (
 
         let fullResponse = '';
         const orderedReferences = [...references].sort((left, right) => Number(left.id_timestamp) - Number(right.id_timestamp));
+        const referenceContextMessage = buildReferenceContextMessage(orderedReferences);
         const messages = [
             {role: 'system' as const, content:'你是一个AI助手，请根据用户的问题给出回答'},
+            ...(referenceContextMessage ? [referenceContextMessage] : []),
             ...orderedReferences.flatMap((item) => {
                 return [
                     { role: 'user' as const, content: item.prompt },
