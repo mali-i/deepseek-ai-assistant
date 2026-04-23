@@ -106,7 +106,7 @@
                 </div>
                 <button
                     class="rounded-lg bg-apple-blue px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-600"
-                    @click.stop="$emit('send')"
+                    @click.stop="handleSend"
                 >
                     Ask now
                 </button>
@@ -120,13 +120,7 @@
 import { computed, onBeforeUnmount, ref, watch, Teleport } from 'vue';
 import type { Conversation, ModelConfig } from '../settings';
 import { buildPromptPreview, usePromptMentions } from '../composables/usePromptMentions';
-
-interface SelectionActionState {
-    text: string;
-    top: number;
-    left: number;
-    placement: 'above' | 'below';
-}
+import type { FollowUpSendPayload, SelectionActionState } from './follow-up';
 
 const props = defineProps<{
     selectionAction: SelectionActionState | null;
@@ -196,11 +190,27 @@ const floatingStyle = computed(() => {
 const emit = defineEmits<{
     open: [];
     close: [];
-    send: [];
+    send: [payload: FollowUpSendPayload];
     'update:followUpQuestionText': [value: string];
     'update:followUpReferences': [value: Conversation[]];
     'update:selectedModelId': [value: string];
 }>();
+
+const handleSend = () => {
+    // 用户新的输入
+    const promptText = props.followUpQuestionText.trim();
+    // 选中的文本
+    const sourceSelection = props.selectionAction?.text?.trim();
+
+    if (!promptText || !sourceSelection) {
+        return;
+    }
+    // 父组件AICard.vue接受props
+    emit('send', {
+        promptText,
+        sourceSelection,
+    });
+};
 
 let isDocumentPointerDownBound = false;
 

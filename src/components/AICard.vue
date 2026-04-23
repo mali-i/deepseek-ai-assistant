@@ -156,13 +156,7 @@ import ThinkingClue from './ThinkingClue.vue'
 import FollowUpQuestionCard from './FollowUpQuestionCard.vue'
 import { DEFAULT_SETTINGS, type Conversation } from '../settings'
 import { buildPromptPreview, usePromptMentions } from '../composables/usePromptMentions'
-
-interface SelectionActionState {
-    text: string;
-    top: number;
-    left: number;
-    placement: 'above' | 'below';
-}
+import type { FollowUpSendPayload, SelectionActionState } from './follow-up'
 
 const props = defineProps<{
     plugin: any
@@ -285,28 +279,43 @@ watch(historyItem, (item) => {
 });
 
 watch(historyAnswer,async ()=>{
-    // console.log('监听answerContainerRef.value;
-    const container = document.querySelector('.answer-field') as HTMLElement
-    if(container) {
-        container.empty();
-    }
-    if(container && historyAnswer.value) {
-        await MarkdownRenderer.render(
-                props.plugin.app,
-                historyAnswer.value,
-                container,
-                '/',
-                props.plugin.app.workspace.getLeavesOfType("deepseek-ai-assistant-itemview")[0].view
-        );
-    }
-    // console.log('watch', historyAnswer.value)
+    await renderAnswerMarkdown(historyAnswer.value);
 })
 
-const clearSelectionAction = () => {
-    selectionAction.value = null;
+const resetFollowUpComposer = () => {
     isFollowUpComposerOpen.value = false;
     followUpQuestionText.value = '';
     followUpSelectedReferences.value = [];
+};
+
+const clearSelectionAction = () => {
+    selectionAction.value = null;
+    resetFollowUpComposer();
+};
+
+const renderAnswerMarkdown = async (content: string) => {
+    const container = answerContainerRef.value;
+    if (!container) {
+        return;
+    }
+
+    container.empty();
+    if (!content) {
+        return;
+    }
+
+    const assistantView = props.plugin.app.workspace.getLeavesOfType('deepseek-ai-assistant-itemview')[0]?.view;
+    if (!assistantView) {
+        return;
+    }
+
+    await MarkdownRenderer.render(
+        props.plugin.app,
+        content,
+        container,
+        '/',
+        assistantView
+    );
 };
 
 const updateAnswerSelection = () => {
@@ -495,17 +504,7 @@ const submitPrompt = async (
                     isThinking.value = false;
                 }
                 fullResponse += content;
-                // 实时渲染 Markdown 内容
-                if(container) {
-                    container.empty();
-                    await MarkdownRenderer.render(
-                        props.plugin.app,
-                        fullResponse,
-                        container,
-                        '/',
-                        props.plugin.app.workspace.getLeavesOfType("deepseek-ai-assistant-itemview")[0].view
-                    );
-                }
+                await renderAnswerMarkdown(fullResponse);
             }
         }
 
@@ -540,15 +539,7 @@ const submitPrompt = async (
              new Notice("DeepSeek API Error: Rate Limit Exceeded (429)");
         }
         
-        if(container) {
-            await MarkdownRenderer.render(
-                props.plugin.app,
-                displayMessage,
-                container,
-                '/',
-                props.plugin.app.workspace.getLeavesOfType("deepseek-ai-assistant-itemview")[0].view
-            );
-        }
+        await renderAnswerMarkdown(displayMessage);
     } finally {
         isLoading.value = false;  // 结束加载
         isThinking.value = false;
@@ -569,10 +560,10 @@ const submit = async () => {
     clearSelectionAction();
 }
 
-const sendFollowUpQuestionNow = async () => {
-    const promptText = followUpQuestionText.value.trim();
+const sendFollowUpQuestionNow = async (payload?: FollowUpSendPayload) => {
+    const promptText = payload?.promptText ?? followUpQuestionText.value.trim();
     const sourceConversation = activeSourceConversation.value;
-    const sourceSelection = selectionAction.value?.text?.trim();
+    const sourceSelection = payload?.sourceSelection ?? selectionAction.value?.text?.trim();
 
     if (!promptText || !sourceSelection || !sourceConversation) {
         return;
