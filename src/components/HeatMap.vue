@@ -11,31 +11,56 @@ const pixel_margin = ref(5) // rect与右边的rect之间的间隔
 var rect_count_x = ref(0)
 const scrollContainer = ref(null)
 const isDragging = ref(false)
+const hasInitializedScroll = ref(false)
+const lastContainerWidth = ref(0)
 let startX
 let scrollLeft
+
+const syncScrollWithRightEdge = (previousWidth, nextWidth) => {
+    if (!scrollContainer.value || isDragging.value || !hasInitializedScroll.value) {
+        return
+    }
+
+    const nextMaxScroll = Math.max(scrollContainer.value.scrollWidth - scrollContainer.value.clientWidth, 0)
+    const nextScrollLeft = scrollContainer.value.scrollLeft + previousWidth - nextWidth
+    scrollContainer.value.scrollLeft = Math.min(Math.max(nextScrollLeft, 0), nextMaxScroll)
+}
 
 const observer = new ResizeObserver(entries =>{
     for(let entry of entries){
         var newWidth = entry.contentRect.width
+        const previousWidth = lastContainerWidth.value || newWidth
         const min_margin = 10
         const col_width = pixel_width.value + pixel_margin.value
         
         // Calculate how many columns fit
         const fitCount = Math.floor((newWidth - 2 * min_margin + pixel_margin.value) / col_width)
+        const nextRectCount = Math.max(53, fitCount)
+        let nextMargin = 10
         
         // We want at least 53 weeks (1 year) to be available for scrolling
         // but if the sidebar is wider than 53 weeks, we show more to fill it.
-        rect_count_x.value = Math.max(53, fitCount)
+        if (nextRectCount > fitCount) {
+            nextMargin = 10 // Fixed small margin when scrollable
+        } else {
+            // Center it if it fits within the width
+            const used_width = nextRectCount * col_width - pixel_margin.value
+            nextMargin = (newWidth - used_width) / 2
+        }
+
+        const shouldRedraw = rect_count_x.value !== nextRectCount || svg_left_or_right_margin.value !== nextMargin
+        rect_count_x.value = nextRectCount
+        svg_left_or_right_margin.value = nextMargin
+        lastContainerWidth.value = newWidth
         
         // If it fits exactly or is smaller than 53, we don't need to center it with large margins
         // because it will be scrollable.
-        if (rect_count_x.value > fitCount) {
-            svg_left_or_right_margin.value = 10 // Fixed small margin when scrollable
-        } else {
-            // Center it if it fits within the width
-            const used_width = rect_count_x.value * col_width - pixel_margin.value
-            svg_left_or_right_margin.value = (newWidth - used_width) / 2
+        if (shouldRedraw) {
+            draw_svg()
+            continue
         }
+
+        syncScrollWithRightEdge(previousWidth, newWidth)
     }
 })
 
@@ -57,15 +82,11 @@ const doDragging = (e) => {
     scrollContainer.value.scrollLeft = scrollLeft - walk
 }
 
-// 监听变化
-watch([rect_count_x, svg_left_or_right_margin],()=>{
-    draw_svg() 
-})
-
 onMounted(async ()=>{
     // console.log('这里是onMounted钩子')
     await nextTick() // 等待DOM更新完成
     if (scrollContainer.value) {
+        lastContainerWidth.value = scrollContainer.value.clientWidth
         observer.observe(scrollContainer.value)
     }
     draw_svg();
@@ -73,6 +94,12 @@ onMounted(async ()=>{
 
 const draw_svg = async ()=>{
     await nextTick() // 等待DOM更新完成
+    const container = scrollContainer.value
+    const previousMaxScroll = container ? Math.max(container.scrollWidth - container.clientWidth, 0) : 0
+    const previousDistanceFromRight = container
+        ? Math.max(previousMaxScroll - container.scrollLeft, 0)
+        : 0
+
     d3.select('#svg_container').selectAll('rect').remove()
     d3.select('#svg_container').selectAll('text').remove()
     
@@ -188,11 +215,21 @@ const draw_svg = async ()=>{
     const svgHeight = svg_top_bottom_margin.value * 2 + month_label_height + (pixel_width.value + pixel_margin.value) * 7 - pixel_margin.value
     d3.select('#svg_container').attr('height', svgHeight)
 
-    // 绘制完成后，如果是初始化或宽度增加，滚动到最右侧（显示最新日期）
+    // 绘制完成后，保持当前相对右侧的位置；仅首次渲染时显示最新日期。
     nextTick(() => {
-        if (scrollContainer.value && !isDragging.value) {
-            scrollContainer.value.scrollLeft = scrollContainer.value.scrollWidth
+        if (!scrollContainer.value || isDragging.value) {
+            return
         }
+
+        const nextMaxScroll = Math.max(scrollContainer.value.scrollWidth - scrollContainer.value.clientWidth, 0)
+
+        if (!hasInitializedScroll.value) {
+            scrollContainer.value.scrollLeft = nextMaxScroll
+            hasInitializedScroll.value = true
+            return
+        }
+
+        scrollContainer.value.scrollLeft = Math.max(nextMaxScroll - previousDistanceFromRight, 0)
     })
 }
 

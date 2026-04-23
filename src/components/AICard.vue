@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col h-full p-2 max-w-[900px] mx-auto w-full">
+    <div class="flex flex-col h-full p-2 pb-4 max-w-[900px] mx-auto w-full">
         <!-- Answer Area -->
         <div class="flex-1 overflow-hidden relative rounded-xl bg-transparent mb-6 group/answer">
             <div v-if="!historyAnswer && !isLoading && !hasResponse" class="absolute inset-0 flex flex-col items-center justify-center text-[var(--text-muted)] opacity-50 pointer-events-none">
@@ -12,6 +12,22 @@
                 <ThinkingClue />
             </div>
             <div ref="answerContainerRef" class="answer-field absolute inset-0 overflow-y-auto p-6 font-sans leading-relaxed select-text cursor-text prose dark:prose-invert max-w-none"></div>
+            <FollowUpQuestionCard
+                :selection-action="selectionAction"
+                :is-follow-up-composer-open="isFollowUpComposerOpen"
+                :follow-up-question-text="followUpQuestionText"
+                :follow-up-references="followUpSelectedReferences"
+                :today-prompt-items="todayPromptItems"
+                :available-models="availableModels"
+                :selected-model-id="chatModel"
+                :overlay-target="overlayTarget"
+                @open="openFollowUpComposer"
+                @close="closeFollowUpComposer"
+                @send="sendFollowUpQuestionNow"
+                @update:follow-up-question-text="followUpQuestionText = $event"
+                @update:follow-up-references="followUpSelectedReferences = $event"
+                @update:selected-model-id="chatModel = $event"
+            />
         </div>
 
         <!-- Input Area -->
@@ -37,9 +53,9 @@
 
                     <textarea 
                         ref="textareaRef"
-                        class="w-full p-4 pb-14 border-none rounded-xl resize-none text-[15px] leading-relaxed bg-[var(--background-primary)] text-[var(--text-normal)] min-h-[120px] max-h-[250px] overflow-y-auto font-sans outline-none placeholder:text-[var(--text-muted)]" 
+                        class="w-full p-4 pb-14 border-none rounded-xl resize-none text-[15px] leading-relaxed bg-[var(--background-primary)] text-[var(--text-normal)] min-h-[120px] max-h-[250px] overflow-y-auto font-sans outline-none placeholder:text-[12px] placeholder:text-[var(--text-muted)]" 
                         v-model="inputContent" 
-                        placeholder="Ask anything...Use @ to reference past conversations from today as context for this session."
+                        placeholder="Use @ to reference past conversations from today as context for this session."
                         @input="adjustHeight"
                         @click="handleCaretChange"
                         @keyup="handleCaretChange"
@@ -48,50 +64,54 @@
                     ></textarea>
 
                     <!-- 历史上下文弹层 -->
-                    <div
-                        v-if="showMentionMenu"
-                        ref="mentionMenuRef"
-                        class="absolute z-20 overflow-hidden rounded-xl border border-[var(--apple-border)] bg-[var(--background-primary)] shadow-xl"
-                        :style="mentionMenuStyle"
-                    >
-                        <div class="border-b border-[var(--apple-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
-                            Today conversations
-                        </div>
-                        <div class="mention-menu-scroll max-h-64 overflow-y-auto overflow-x-auto py-1">
-                            <button
-                                v-for="(item, index) in filteredTodayPrompts"
-                                :key="item.id_timestamp"
-                                type="button"
-                                class="flex w-full min-w-0 flex-col items-start gap-1 px-3 py-2 text-left transition-colors"
-                                :class="index === activeMentionIndex ? 'bg-[var(--background-modifier-hover)]' : 'hover:bg-[var(--background-modifier-hover)]'"
-                                @mousedown.prevent="selectMention(item)"
-                            >
-                                <div class="flex w-full min-w-0 flex-col items-start gap-1 text-left">
-                                    <span class="block w-full break-words text-sm text-[var(--text-normal)]">{{ buildPromptPreview(item.prompt, 80) }}</span>
+                    <Teleport :to="overlayTarget || 'body'" :disabled="!overlayTarget">
+                        <div
+                            v-if="showMentionMenu"
+                            ref="mentionMenuRootRef"
+                            class="absolute z-[1000] overflow-hidden rounded-xl border border-[var(--apple-border)] bg-[var(--background-primary)] shadow-xl"
+                            :style="mentionMenuStyle"
+                        >
+                            <div class="border-b border-[var(--apple-border)] px-3 py-2 text-xs text-[var(--text-muted)]">
+                                Today conversations
+                            </div>
+                            <div ref="mentionMenuListRef" class="mention-menu-scroll h-56 overflow-y-auto overflow-x-auto py-0.5">
+                                <button
+                                    v-for="(item, index) in filteredTodayPrompts"
+                                    :key="item.id_timestamp"
+                                    type="button"
+                                    :data-mention-index="index"
+                                    class="flex w-full min-w-0 appearance-none flex-col items-start gap-0.5 border-0 px-3 py-1.5 text-left shadow-none transition-colors"
+                                    :class="index === activeMentionIndex ? 'bg-[var(--background-modifier-hover)]' : 'bg-transparent hover:bg-[var(--background-modifier-hover)]'"
+                                    @mousedown.prevent="selectMention(item)"
+                                >
+                                    <div class="flex w-full min-w-0 flex-col items-start gap-0.5 text-left">
+                                        <span class="block w-full break-words text-[13px] leading-5 text-[var(--text-normal)]">{{ buildPromptPreview(item.prompt, 80) }}</span>
+                                    </div>
+                                    <div class="w-full break-words text-left text-[11px] leading-4 text-[var(--text-muted)] line-clamp-2">{{ item.answer }}</div>
+                                </button>
+                                <div v-if="!filteredTodayPrompts.length" class="px-3 py-3 text-left text-sm text-[var(--text-muted)] break-words">
+                                    {{ emptyMentionText }}
                                 </div>
-                                <div class="w-full break-words text-left text-xs text-[var(--text-muted)] line-clamp-2">{{ item.answer }}</div>
-                            </button>
-                            <div v-if="!filteredTodayPrompts.length" class="px-3 py-3 text-left text-sm text-[var(--text-muted)] break-words">
-                                {{ emptyMentionText }}
                             </div>
                         </div>
-                    </div>
+                    </Teleport>
                     
                     <!-- Controls Bar -->
-                    <div class="absolute bottom-3 right-3 left-3 flex justify-between items-center">
+                     <!-- 目前使用了绝对定位 -->
+                    <div class="absolute bottom-3 left-3 right-3 z-10 flex items-center justify-between rounded-md border border-[var(--background-modifier-border)]/35 bg-[var(--background-primary)]/88 px-2 py-1 backdrop-blur-[2px]">
                         <!-- Model Selector -->
                         <div class="relative group">
-                            <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-[var(--apple-border)]">
+                            <div class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[var(--text-muted)] transition-colors cursor-pointer hover:bg-[var(--background-modifier-hover)] hover:text-[var(--text-normal)]">
                                 <select 
                                     v-model="chatModel" 
-                                    class="appearance-none bg-transparent border-none text-[12px] font-medium text-[var(--text-normal)] cursor-pointer pr-4 focus:outline-none font-sans"
+                                    class="appearance-none bg-transparent border-none shadow-none ring-0 outline-none text-[11px] font-medium text-[var(--text-normal)] cursor-pointer pr-3 focus:border-none focus:shadow-none focus:ring-0 focus:outline-none font-sans"
                                 >
                                     <option v-for="model in availableModels" :key="model.id" :value="model.id">
                                         {{ model.name }}
                                     </option>
                                 </select>
-                                <div class="absolute right-2.5 pointer-events-none text-[var(--text-muted)]">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <div class="absolute right-0 pointer-events-none text-[var(--text-muted)]">
+                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M6 9l6 6 6-6"/>
                                     </svg>
                                 </div>
@@ -100,23 +120,25 @@
 
                         <!-- Send Button -->
                         <button 
-                            class="h-8 px-4 bg-apple-blue text-white border-none rounded-full cursor-pointer text-[13px] font-semibold transition-all duration-200 flex items-center justify-center shadow-sm hover:bg-blue-600 hover:shadow-md active:scale-95 disabled:bg-[var(--background-modifier-border)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100" 
+                            class="h-6 min-w-6 px-2 bg-transparent text-[var(--text-muted)] border border-transparent rounded-md cursor-pointer text-[11px] font-medium transition-all duration-200 flex items-center justify-center hover:bg-apple-blue/10 hover:text-apple-blue active:scale-95 disabled:bg-transparent disabled:text-[var(--text-muted)] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100" 
                             @click="submit"
+                            title="Send"
+                            aria-label="Send"
                             :disabled="isLoading || !inputContent.trim()"
                         >
                             <span v-if="!isLoading" class="flex items-center gap-1">
-                                Send
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <span class="text-[11px] leading-none">Send</span>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="22" y1="2" x2="11" y2="13"></line>
                                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                                 </svg>
                             </span>
-                            <span v-else class="flex items-center gap-2">
-                                <svg class="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <span v-else class="flex items-center gap-1">
+                                <svg class="animate-spin h-3 w-3 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Thinking
+                                <span class="text-[11px] leading-none">Thinking</span>
                             </span>
                         </button>
                     </div>
@@ -126,34 +148,19 @@
     </div>
 </template>
 <script setup lang="ts">
-import { ref, computed , watch, nextTick, onMounted, onUnmounted} from 'vue';
+import { ref, computed , watch, nextTick, onMounted, onUnmounted, Teleport } from 'vue';
 import { OpenAI } from 'openai';
 import {MarkdownRenderer, Notice} from 'obsidian';
 import {usePromptStore} from '../store/prompts'
 import ThinkingClue from './ThinkingClue.vue'
-import { DEFAULT_SETTINGS } from '../settings'
-
-interface PromptReference {
-    id_timestamp: string;
-    prompt: string;
-    answer: string;
-    model?: string;
-}
-
-interface MentionState {
-    query: string;
-    start: number;
-    end: number;
-}
-
-interface MentionMenuPosition {
-    top: number;
-    left: number;
-    maxWidth: number;
-}
+import FollowUpQuestionCard from './FollowUpQuestionCard.vue'
+import { DEFAULT_SETTINGS, type Conversation } from '../settings'
+import { buildPromptPreview, usePromptMentions } from '../composables/usePromptMentions'
+import type { FollowUpSendPayload, SelectionActionState } from './follow-up'
 
 const props = defineProps<{
     plugin: any
+    overlayTarget?: HTMLElement | null
 }>();
 
 const availableModels = ref<any[]>([]);
@@ -175,12 +182,16 @@ onMounted(() => {
     if (props.plugin.registerSettingsListener) {
         props.plugin.registerSettingsListener(updateModels);
     }
+
+    document.addEventListener('selectionchange', updateAnswerSelection);
 });
 
 onUnmounted(() => {
     if (props.plugin.unregisterSettingsListener) {
         props.plugin.unregisterSettingsListener(updateModels);
     }
+
+    document.removeEventListener('selectionchange', updateAnswerSelection);
 });
 
 const inputContent = ref('');
@@ -191,79 +202,55 @@ const promptStore = usePromptStore()
 const chatModel = ref(availableModels.value[0]?.id || 'deepseek-reasoner')
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const answerContainerRef = ref<HTMLElement | null>(null);
-const mentionMenuRef = ref<HTMLElement | null>(null);
-const selectedReferences = ref<PromptReference[]>([]);
-const mentionState = ref<MentionState | null>(null);
-const activeMentionIndex = ref(0);
-const mentionMenuPosition = ref<MentionMenuPosition | null>(null);
+const selectedReferences = ref<Conversation[]>([]);
+const selectionAction = ref<SelectionActionState | null>(null);
+const isFollowUpComposerOpen = ref(false);
+const followUpQuestionText = ref('');
+const followUpSelectedReferences = ref<Conversation[]>([]);
 
 const historyItem = computed(() => promptStore.historyCard)
 const historyAnswer = computed(()=>{
     return historyItem.value?.answer || ''
 })
+const activeSourceConversation = computed<Conversation | null>(() => {
+    if (!historyItem.value) {
+        return null;
+    }
 
-const todayPromptItems = computed<PromptReference[]>(() => {
+    const sourceConversation = historyItem.value.source_conversation_id
+        ? promptStore.findPromptById(historyItem.value.source_conversation_id)
+        : historyItem.value;
+
+    return sourceConversation?.id_timestamp ? sourceConversation : null;
+})
+
+const todayPromptItems = computed<Conversation[]>(() => {
     const today = new Date().toISOString().split('T')[0];
     const promptStats = promptStore.promptStats;
     const items = promptStats?.[today]?.prompt_content || [];
-    return [...items].sort((left: PromptReference, right: PromptReference) => Number(right.id_timestamp) - Number(left.id_timestamp));
+    return [...items].sort((left: Conversation, right: Conversation) => Number(right.id_timestamp) - Number(left.id_timestamp));
 });
 
-const filteredTodayPrompts = computed<PromptReference[]>(() => {
-    if (!mentionState.value) {
-        return [];
-    }
-
-    const query = mentionState.value.query.trim().toLowerCase();
-    return todayPromptItems.value.filter((item) => {
-        if (selectedReferences.value.some((selected) => selected.id_timestamp === item.id_timestamp)) {
-            return false;
-        }
-
-        if (!query) {
-            return true;
-        }
-
-        return item.prompt.toLowerCase().includes(query) || item.answer.toLowerCase().includes(query);
-    });
-});
-
-const showMentionMenu = computed(() => {
-    return Boolean(mentionState.value);
-});
-
-const emptyMentionText = computed(() => {
-    if (!mentionState.value) {
-        return '';
-    }
-
-    if (!todayPromptItems.value.length) {
-        return 'Today has no history conversations yet.';
-    }
-
-    return mentionState.value.query.trim()
-        ? 'No matching history conversations found for the current @ search.'
-        : 'No remaining history conversations are available to be selected.';
-});
-
-const mentionMenuStyle = computed(() => {
-    if (!mentionMenuPosition.value) {
-        return { 
-            left: '16px',
-            top: '0px',
-            width: '360px',
-            maxWidth: 'calc(100% - 32px)',
-            transform: 'translateY(calc(-100% - 4px))',
-        };
-    }
-    // 返回弹层位置的css样式对象
-    return {
-        left: `${mentionMenuPosition.value.left}px`,
-        top: `${mentionMenuPosition.value.top}px`,
-        width: '360px',
-        maxWidth: `${mentionMenuPosition.value.maxWidth}px`,
-        transform: 'translateY(calc(-100% - 4px))',
-    };
+const {
+    activeMentionIndex,
+    filteredTodayPrompts,
+    showMentionMenu,
+    emptyMentionText,
+    mentionMenuStyle,
+    mentionMenuRootRef,
+    mentionMenuListRef,
+    clearMentionState,
+    updateMentionState,
+    handleCaretChange,
+    selectMention,
+    removeReference,
+    handleMentionKeydown,
+} = usePromptMentions({
+    inputContent,
+    textareaRef,
+    todayPromptItems,
+    selectedReferences,
+    overlayTarget: computed(() => props.overlayTarget),
 });
 
 const adjustHeight = () => {
@@ -281,259 +268,174 @@ watch(inputContent, () => {
     nextTick(adjustHeight);
     nextTick(updateMentionState);
 });
-answerContainerRef.value;
-watch(historyAnswer,async ()=>{
-    // console.log('监听answerContainerRef.value;
-    const container = document.querySelector('.answer-field') as HTMLElement
-    if(container && historyAnswer.value) {
-        container.empty();
-        await MarkdownRenderer.render(
-                props.plugin.app,
-                historyAnswer.value,
-                container,
-                '/',
-                props.plugin.app.workspace.getLeavesOfType("deepseek-ai-assistant-itemview")[0].view
-        );
+
+watch(historyItem, (item) => {
+    if (item) {
+        return;
     }
-    // console.log('watch', historyAnswer.value)
+
+    hasResponse.value = false;
+    clearSelectionAction();
+});
+
+watch(historyAnswer,async ()=>{
+    await renderAnswerMarkdown(historyAnswer.value);
 })
 
-watch(filteredTodayPrompts, (items) => {
-    if (!items.length) {
-        activeMentionIndex.value = 0;
-        return;
-    }
-
-    if (activeMentionIndex.value >= items.length) {
-        activeMentionIndex.value = 0;
-    }
-
-    nextTick(updateMentionMenuPosition);
-});
-
-watch(showMentionMenu, (visible) => {
-    if (!visible) {
-        mentionMenuPosition.value = null;
-        return;
-    }
-
-    nextTick(updateMentionMenuPosition);
-});
-
-const buildPromptPreview = (text: string, maxLength = 36) => {
-    const normalized = text.replace(/\s+/g, ' ').trim();
-    if (!normalized) {
-        return 'Untitled prompt';
-    }
-    return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
+const resetFollowUpComposer = () => {
+    isFollowUpComposerOpen.value = false;
+    followUpQuestionText.value = '';
+    followUpSelectedReferences.value = [];
 };
 
-const clearMentionState = () => {
-    mentionState.value = null;
-    activeMentionIndex.value = 0;
-    mentionMenuPosition.value = null;
+const clearSelectionAction = () => {
+    selectionAction.value = null;
+    resetFollowUpComposer();
 };
 
-const getTextareaCaretCoordinates = (textarea: HTMLTextAreaElement, position: number) => {
-    const computedStyle = window.getComputedStyle(textarea);
-    const mirror = document.createElement('div');
-    const propertiesToCopy = [
-        'boxSizing',
-        'width',
-        'height',
-        'overflowX',
-        'overflowY',
-        'borderTopWidth',
-        'borderRightWidth',
-        'borderBottomWidth',
-        'borderLeftWidth',
-        'paddingTop',
-        'paddingRight',
-        'paddingBottom',
-        'paddingLeft',
-        'fontStyle',
-        'fontVariant',
-        'fontWeight',
-        'fontStretch',
-        'fontSize',
-        'fontSizeAdjust',
-        'lineHeight',
-        'fontFamily',
-        'textAlign',
-        'textTransform',
-        'textIndent',
-        'textDecoration',
-        'letterSpacing',
-        'wordSpacing',
-        'tabSize',
-        'MozTabSize',
-    ] as const;
-
-    mirror.style.position = 'absolute';
-    mirror.style.visibility = 'hidden';
-    mirror.style.whiteSpace = 'pre-wrap';
-    mirror.style.wordWrap = 'break-word';
-    mirror.style.overflow = 'hidden';
-    mirror.style.top = '0';
-    mirror.style.left = '-9999px';
-
-    propertiesToCopy.forEach((property) => {
-        mirror.style[property as any] = computedStyle[property as any];
-    });
-
-    mirror.textContent = textarea.value.slice(0, position);
-
-    const marker = document.createElement('span');
-    marker.textContent = textarea.value.slice(position) || '.';
-    mirror.appendChild(marker);
-    document.body.appendChild(mirror);
-
-    const coordinates = {
-        left: marker.offsetLeft - textarea.scrollLeft,
-        top: marker.offsetTop - textarea.scrollTop,
-        lineHeight: parseFloat(computedStyle.lineHeight) || parseFloat(computedStyle.fontSize) * 1.4,
-    };
-
-    document.body.removeChild(mirror);
-    return coordinates;
-};
-
-const updateMentionMenuPosition = () => {
-    const textarea = textareaRef.value;
-    if (!textarea || !mentionState.value) {
-        mentionMenuPosition.value = null;
-        return;
-    }
-
-    const container = textarea.parentElement;
+const renderAnswerMarkdown = async (content: string) => {
+    const container = answerContainerRef.value;
     if (!container) {
-        mentionMenuPosition.value = null;
         return;
     }
 
-    const caret = getTextareaCaretCoordinates(textarea, mentionState.value.end);
-    const horizontalPadding = 16;
-    const preferredWidth = 360;
-    const availableWidth = Math.max(240, container.clientWidth - horizontalPadding * 2);
-    const popupWidth = Math.min(preferredWidth, availableWidth);
-    const maxLeft = Math.max(horizontalPadding, container.clientWidth - popupWidth - horizontalPadding);
-    const caretLeft = textarea.offsetLeft + caret.left;
-    const caretTop = textarea.offsetTop + caret.top;
+    container.empty();
+    if (!content) {
+        return;
+    }
 
-    mentionMenuPosition.value = {
-        left: Math.min(Math.max(caretLeft, horizontalPadding), maxLeft),
-        top: caretTop,
-        maxWidth: availableWidth,
+    const assistantView = props.plugin.app.workspace.getLeavesOfType('deepseek-ai-assistant-itemview')[0]?.view;
+    if (!assistantView) {
+        return;
+    }
+
+    await MarkdownRenderer.render(
+        props.plugin.app,
+        content,
+        container,
+        '/',
+        assistantView
+    );
+};
+
+const updateAnswerSelection = () => {
+    if (isFollowUpComposerOpen.value) {
+        return;
+    }
+
+    const container = answerContainerRef.value;
+    const overlayRoot = props.overlayTarget ?? container?.closest('[data-follow-up-overlay-root]') as HTMLElement | null;
+    const selection = window.getSelection();
+
+    if (!container || !overlayRoot || !selection || selection.rangeCount === 0 || selection.isCollapsed || !activeSourceConversation.value) {
+        selectionAction.value = null;
+        return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const ancestor = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+        ? range.commonAncestorContainer.parentNode
+        : range.commonAncestorContainer;
+
+    if (!ancestor || !container.contains(ancestor)) {
+        selectionAction.value = null;
+        return;
+    }
+
+    const text = selection.toString().replace(/\s+/g, ' ').trim();
+    if (!text) {
+        selectionAction.value = null;
+        return;
+    }
+
+    const rangeRect = range.getBoundingClientRect();
+    const overlayRect = overlayRoot.getBoundingClientRect();
+    if (!rangeRect.width && !rangeRect.height) {
+        selectionAction.value = null;
+        return;
+    }
+
+    const composerHeight = 236;
+    const floatingGap = 12;
+    const viewportPadding = 16;
+    const spaceAbove = rangeRect.top - overlayRect.top - viewportPadding;
+    const spaceBelow = overlayRect.bottom - rangeRect.bottom - viewportPadding;
+    const placement = spaceAbove >= composerHeight + floatingGap
+        ? 'above'
+        : spaceBelow >= composerHeight + floatingGap
+            ? 'below'
+            : spaceAbove > spaceBelow
+                ? 'above'
+                : 'below';
+    const anchorTop = placement === 'above'
+        ? Math.max(rangeRect.top - overlayRect.top, viewportPadding + floatingGap)
+        : Math.min(rangeRect.bottom - overlayRect.top, overlayRect.height - viewportPadding - floatingGap);
+
+    selectionAction.value = {
+        text,
+        left: Math.min(Math.max(rangeRect.left - overlayRect.left + rangeRect.width / 2, 32), overlayRect.width - 32),
+        top: anchorTop,
+        placement,
     };
 };
 
-const updateMentionState = () => {
-    const textarea = textareaRef.value;
-    if (!textarea) {
-        clearMentionState();
+const openFollowUpComposer = () => {
+    if (!selectionAction.value) {
         return;
     }
 
-    const caretIndex = textarea.selectionStart ?? inputContent.value.length;
-    const contentBeforeCaret = inputContent.value.slice(0, caretIndex);
-    const match = contentBeforeCaret.match(/(^|\s)@([^\s@]*)$/);
-
-    if (!match) {
-        clearMentionState();
-        return;
-    }
-
-    const leadingPart = match[1] || '';
-    const tokenStart = contentBeforeCaret.length - match[0].length + leadingPart.length;
-
-    mentionState.value = {
-        query: match[2] || '',
-        start: tokenStart,
-        end: caretIndex,
-    };
-
-    nextTick(updateMentionMenuPosition);
+    isFollowUpComposerOpen.value = true;
+    followUpQuestionText.value = '';
+    followUpSelectedReferences.value = [];
 };
 
-const handleCaretChange = () => {
-    updateMentionState();
+const closeFollowUpComposer = () => {
+    clearSelectionAction();
+    window.getSelection()?.removeAllRanges();
 };
 
-const selectMention = async (item: PromptReference) => {
-    if (!mentionState.value) {
-        return;
-    }
+const mergeReferences = (...groups: Conversation[][]) => {
+    const uniqueReferences = new Map<string, Conversation>();
 
-    if (!selectedReferences.value.some((selected) => selected.id_timestamp === item.id_timestamp)) {
-        selectedReferences.value = [...selectedReferences.value, item];
-    }
-
-    const before = inputContent.value.slice(0, mentionState.value.start);
-    const after = inputContent.value.slice(mentionState.value.end);
-    const needsSpace = after.length > 0 && !after.startsWith(' ') && !before.endsWith(' ') ? ' ' : '';
-    inputContent.value = `${before}${needsSpace}${after}`;
-    clearMentionState();
-
-    await nextTick();
-
-    const nextCaret = before.length + needsSpace.length;
-    textareaRef.value?.focus();
-    textareaRef.value?.setSelectionRange(nextCaret, nextCaret);
-    updateMentionMenuPosition();
-};
-
-const removeReference = (id: string) => {
-    selectedReferences.value = selectedReferences.value.filter((item) => item.id_timestamp !== id);
-};
-
-const handleMentionKeydown = (event: KeyboardEvent) => {
-    if (!showMentionMenu.value) {
-        return;
-    }
-
-    if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        activeMentionIndex.value = (activeMentionIndex.value + 1) % filteredTodayPrompts.value.length;
-        return;
-    }
-
-    if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        activeMentionIndex.value = (activeMentionIndex.value - 1 + filteredTodayPrompts.value.length) % filteredTodayPrompts.value.length;
-        return;
-    }
-
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        const activeItem = filteredTodayPrompts.value[activeMentionIndex.value];
-        if (activeItem) {
-            void selectMention(activeItem);
+    groups.flat().forEach((item) => {
+        if (!item?.id_timestamp || uniqueReferences.has(item.id_timestamp)) {
+            return;
         }
-        return;
-    }
 
-    if (event.key === 'Escape') {
-        event.preventDefault();
-        clearMentionState();
-    }
-};
-
-const buildContextMessages = () => {
-    const orderedReferences = [...selectedReferences.value].sort((left, right) => Number(left.id_timestamp) - Number(right.id_timestamp));
-
-    return orderedReferences.flatMap((item) => {
-        return [
-            { role: 'user' as const, content: item.prompt },
-            { role: 'assistant' as const, content: item.answer },
-        ];
+        uniqueReferences.set(item.id_timestamp, item);
     });
+
+    return Array.from(uniqueReferences.values());
 };
 
-const handleCommand = (command: string | number | object) => {
-  new Notice(`click on item ${command}`)
-}
+const buildReferenceContextMessage = (references: Conversation[]) => {
+    if (!references.length) {
+        return null;
+    }
 
-const submit = async () => {
+    return {
+        role: 'system' as const,
+        content: [
+            '以下内容是用户通过 @ 主动引用的历史对话上下文。',
+            '这些内容仅作为当前问题的补充背景，不要把它们当作需要继续续写的对话。',
+            '如果当前问题明显依赖这些引用，请优先结合引用内容作答。',
+            '',
+            ...references.flatMap((item, index) => [
+                `[@引用 ${index + 1}]`,
+                `问题：${item.prompt}`,
+                `回答：${item.answer}`,
+                '',
+            ]),
+        ].join('\n'),
+    };
+};
+
+const submitPrompt = async (
+    promptText: string,
+    references: Conversation[] = selectedReferences.value,
+    sourceConversationId?: string,
+    sourceSelection?: string
+) => {
     const container = answerContainerRef.value;
     if(container) container.empty();
     isLoading.value = true;  // 开始加载
@@ -560,10 +462,31 @@ const submit = async () => {
         });
 
         let fullResponse = '';
+        const orderedReferences = [...references].sort((left, right) => Number(left.id_timestamp) - Number(right.id_timestamp));
+        const referenceContextMessage = buildReferenceContextMessage(orderedReferences);
         const messages = [
             {role: 'system' as const, content:'你是一个AI助手，请根据用户的问题给出回答'},
-            ...buildContextMessages(),
-            {role: 'user' as const, content: inputContent.value}
+            ...(referenceContextMessage ? [referenceContextMessage] : []),
+            ...orderedReferences.flatMap((item) => {
+                return [
+                    { role: 'user' as const, content: item.prompt },
+                    { role: 'assistant' as const, content: item.answer },
+                ];
+            }),
+            ...(sourceSelection
+                ? [{
+                    role: 'system' as const,
+                    content: [
+                        '当前用户正在基于上一轮回答中的一个选中片段继续追问。',
+                        '回答后续问题时，请遵守以下规则：',
+                        '1. 如果用户的问题是在追问原因、细节、边界条件或示例，回答时要直接对应到选中片段，不要泛泛重述整段历史对话。',
+                        '',
+                        '用户选中的片段：',
+                        sourceSelection,
+                    ].join('\n')
+                }]
+                : []),
+            {role: 'user' as const, content: promptText}
         ];
 
         // openAI的Chat Completions API，定义了现代聊天式大模型交互的基本格式
@@ -581,28 +504,27 @@ const submit = async () => {
                     isThinking.value = false;
                 }
                 fullResponse += content;
-                // 实时渲染 Markdown 内容
-                if(container) {
-                    container.empty();
-                    await MarkdownRenderer.render(
-                        props.plugin.app,
-                        fullResponse,
-                        container,
-                        '/',
-                        props.plugin.app.workspace.getLeavesOfType("deepseek-ai-assistant-itemview")[0].view
-                    );
-                }
+                await renderAnswerMarkdown(fullResponse);
             }
         }
 
         if (fullResponse) {
-            // 保存对话到 store
-            promptStore.addPrompt(inputContent.value, fullResponse, selectedModelConfig.id)
-            // 清空输入框
-            inputContent.value = '';
-            selectedReferences.value = [];
-            clearMentionState();
+            const contextRefIds = orderedReferences.map((item) => item.id_timestamp);
+            const savedPrompt = await promptStore.addPrompt(
+                promptText,
+                fullResponse,
+                selectedModelConfig.id,
+                contextRefIds,
+                sourceConversationId || orderedReferences[0]?.id_timestamp,
+                sourceSelection
+            )
+
+            if (savedPrompt) {
+                promptStore.updateHistoryCard(savedPrompt)
+            }
+
             hasResponse.value = true;
+            return savedPrompt;
         }
     } catch (error: any) {
         isThinking.value = false;
@@ -617,19 +539,39 @@ const submit = async () => {
              new Notice("DeepSeek API Error: Rate Limit Exceeded (429)");
         }
         
-        if(container) {
-            await MarkdownRenderer.render(
-                props.plugin.app,
-                displayMessage,
-                container,
-                '/',
-                props.plugin.app.workspace.getLeavesOfType("deepseek-ai-assistant-itemview")[0].view
-            );
-        }
+        await renderAnswerMarkdown(displayMessage);
     } finally {
         isLoading.value = false;  // 结束加载
         isThinking.value = false;
     }
+}
+
+const submit = async () => {
+    const promptText = inputContent.value.trim();
+    if (!promptText) {
+        return;
+    }
+
+    const references = [...selectedReferences.value];
+    await submitPrompt(promptText, references, references[0]?.id_timestamp);
+    inputContent.value = '';
+    selectedReferences.value = [];
+    clearMentionState();
+    clearSelectionAction();
+}
+
+const sendFollowUpQuestionNow = async (payload?: FollowUpSendPayload) => {
+    const promptText = payload?.promptText ?? followUpQuestionText.value.trim();
+    const sourceConversation = activeSourceConversation.value;
+    const sourceSelection = payload?.sourceSelection ?? selectionAction.value?.text?.trim();
+
+    if (!promptText || !sourceSelection || !sourceConversation) {
+        return;
+    }
+
+    const references = mergeReferences([sourceConversation], followUpSelectedReferences.value);
+    await submitPrompt(promptText, references, sourceConversation.id_timestamp, sourceSelection);
+    closeFollowUpComposer();
 }
 </script>
 

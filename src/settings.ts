@@ -1,16 +1,19 @@
 // 单条对话条目类型
-interface Conversation {
-    id_timestamp: string;
-    prompt: string;
-    answer: string;
+export interface Conversation {
+    id_timestamp: string; // 对话id_时间戳，用来唯一指向对话
+    prompt: string; // 提问内容
+    answer: string; // ai回答内容
     model?: string;
-  }
+    source_conversation_id?: string; // 主追问来源问题 id_timestamp
+    source_selection?: string; // 从上一轮回答中选中的追问片段
+    context_refs?: string[];  // 通过 @ 引用的历史对话 id_timestamp 列表
+}
   
   // 日期对应的完整数据
-  interface DateData {
+export interface DateData {
     num: number;             // 当日的对话总数量
     prompt_content: Conversation[];   // 对话列表
-  }
+}
   
   // 完整数据结构类型 (日期为动态键名)
 export interface DataStructure {
