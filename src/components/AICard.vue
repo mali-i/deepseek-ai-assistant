@@ -212,6 +212,13 @@ const historyItem = computed(() => promptStore.historyCard)
 const historyAnswer = computed(()=>{
     return historyItem.value?.answer || ''
 })
+const currentDisplayConversation = computed<Conversation | null>(() => {
+    if (!historyItem.value?.id_timestamp) {
+        return null;
+    }
+
+    return historyItem.value;
+})
 const activeSourceConversation = computed<Conversation | null>(() => {
     if (!historyItem.value) {
         return null;
@@ -327,7 +334,7 @@ const updateAnswerSelection = () => {
     const overlayRoot = props.overlayTarget ?? container?.closest('[data-follow-up-overlay-root]') as HTMLElement | null;
     const selection = window.getSelection();
 
-    if (!container || !overlayRoot || !selection || selection.rangeCount === 0 || selection.isCollapsed || !activeSourceConversation.value) {
+    if (!container || !overlayRoot || !selection || selection.rangeCount === 0 || selection.isCollapsed || !currentDisplayConversation.value) {
         selectionAction.value = null;
         return;
     }
@@ -562,7 +569,7 @@ const submit = async () => {
 
 const sendFollowUpQuestionNow = async (payload?: FollowUpSendPayload) => {
     const promptText = payload?.promptText ?? followUpQuestionText.value.trim();
-    const sourceConversation = activeSourceConversation.value;
+    const sourceConversation = currentDisplayConversation.value;
     const sourceSelection = payload?.sourceSelection ?? selectionAction.value?.text?.trim();
 
     if (!promptText || !sourceSelection || !sourceConversation) {
