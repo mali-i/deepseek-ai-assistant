@@ -209,6 +209,7 @@ const handleSend = () => {
     emit('send', {
         promptText,
         sourceSelection,
+        sourceConversationId: props.selectionAction.sourceConversationId,
     });
 };
 

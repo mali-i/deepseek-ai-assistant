@@ -380,6 +380,7 @@ const updateAnswerSelection = () => {
 
     selectionAction.value = {
         text,
+        sourceConversationId: currentDisplayConversation.value.id_timestamp,
         left: Math.min(Math.max(rangeRect.left - overlayRect.left + rangeRect.width / 2, 32), overlayRect.width - 32),
         top: anchorTop,
         placement,
@@ -569,8 +570,11 @@ const submit = async () => {
 
 const sendFollowUpQuestionNow = async (payload?: FollowUpSendPayload) => {
     const promptText = payload?.promptText ?? followUpQuestionText.value.trim();
-    const sourceConversation = currentDisplayConversation.value;
     const sourceSelection = payload?.sourceSelection ?? selectionAction.value?.text?.trim();
+    const sourceConversationId = payload?.sourceConversationId ?? selectionAction.value?.sourceConversationId;
+    const sourceConversation = sourceConversationId
+        ? promptStore.findPromptById(sourceConversationId)
+        : currentDisplayConversation.value;
 
     if (!promptText || !sourceSelection || !sourceConversation) {
         return;
@@ -612,4 +616,3 @@ const sendFollowUpQuestionNow = async (payload?: FollowUpSendPayload) => {
     height: 0;
 }
 </style>
-
