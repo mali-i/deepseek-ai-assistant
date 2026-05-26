@@ -17,11 +17,6 @@ export class DeepSeekAIAssistant_SettingTab extends PluginSettingTab {
 
         const models = this.plugin.settings.models || [];
 
-        // Check migration (simple check)
-        if (!this.plugin.settings.models && (this.plugin.settings as any).customModels) {
-             // Basic migration logic could go here, but for now we rely on user adding new ones or using defaults
-        }
-
         // --- Models List ---
         models.forEach((model, index) => {
             const setting = new Setting(containerEl)

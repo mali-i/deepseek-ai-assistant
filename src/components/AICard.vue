@@ -486,7 +486,7 @@ const submitPrompt = async (
             const savedPrompt = await promptStore.addPrompt(
                 promptText,
                 fullResponse,
-                selectedModelConfig.id,
+                selectedModelConfig.modelId,
                 contextRefIds,
                 sourceConversationId,
                 sourceSelection

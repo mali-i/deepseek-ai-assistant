@@ -30,11 +30,6 @@ export interface ModelConfig {
 }
 
 export interface SettingsInterfaceType{
-    // 废弃旧的顶层字段，为了类型兼容暂时保留或改为可选，但核心逻辑使用 models 列表
-    API_KEY?:string; // Deprecated
-    API_URL?:string; // Deprecated
-    customModels?: any[]; // Deprecated
-
     models: ModelConfig[]; // 新的主要配置项
     promptStats: DataStructure;
 }
