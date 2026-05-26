@@ -219,11 +219,11 @@ const clickItem = (item: Conversation) => {
 }
 
 const clickSourceSelection = (item: Conversation) => {
-  if (!item.source_conversation_id) {
+  if (!item.source_selection) {
     return;
   }
 
-  promptStore.findAndSelectPromptById(item.source_conversation_id)
+  void promptStore.findAndSelectPromptBySourceSelection(item.source_selection, item.source_conversation_id, item.id_timestamp)
 }
 
 const copyLink = (item: Conversation) => {

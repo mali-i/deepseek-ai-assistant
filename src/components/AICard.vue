@@ -219,17 +219,6 @@ const currentDisplayConversation = computed<Conversation | null>(() => {
 
     return historyItem.value;
 })
-const activeSourceConversation = computed<Conversation | null>(() => {
-    if (!historyItem.value) {
-        return null;
-    }
-
-    const sourceConversation = historyItem.value.source_conversation_id
-        ? promptStore.findPromptById(historyItem.value.source_conversation_id)
-        : historyItem.value;
-
-    return sourceConversation?.id_timestamp ? sourceConversation : null;
-})
 
 const todayPromptItems = computed<Conversation[]>(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -380,6 +369,7 @@ const updateAnswerSelection = () => {
 
     selectionAction.value = {
         text,
+        sourceConversationId: currentDisplayConversation.value.id_timestamp,
         left: Math.min(Math.max(rangeRect.left - overlayRect.left + rangeRect.width / 2, 32), overlayRect.width - 32),
         top: anchorTop,
         placement,
@@ -415,28 +405,6 @@ const mergeReferences = (...groups: Conversation[][]) => {
     return Array.from(uniqueReferences.values());
 };
 
-const buildReferenceContextMessage = (references: Conversation[]) => {
-    if (!references.length) {
-        return null;
-    }
-
-    return {
-        role: 'system' as const,
-        content: [
-            '以下内容是用户通过 @ 主动引用的历史对话上下文。',
-            '这些内容仅作为当前问题的补充背景，不要把它们当作需要继续续写的对话。',
-            '如果当前问题明显依赖这些引用，请优先结合引用内容作答。',
-            '',
-            ...references.flatMap((item, index) => [
-                `[@引用 ${index + 1}]`,
-                `问题：${item.prompt}`,
-                `回答：${item.answer}`,
-                '',
-            ]),
-        ].join('\n'),
-    };
-};
-
 const submitPrompt = async (
     promptText: string,
     references: Conversation[] = selectedReferences.value,
@@ -470,10 +438,8 @@ const submitPrompt = async (
 
         let fullResponse = '';
         const orderedReferences = [...references].sort((left, right) => Number(left.id_timestamp) - Number(right.id_timestamp));
-        const referenceContextMessage = buildReferenceContextMessage(orderedReferences);
         const messages = [
             {role: 'system' as const, content:'你是一个AI助手，请根据用户的问题给出回答'},
-            ...(referenceContextMessage ? [referenceContextMessage] : []),
             ...orderedReferences.flatMap((item) => {
                 return [
                     { role: 'user' as const, content: item.prompt },
@@ -520,9 +486,9 @@ const submitPrompt = async (
             const savedPrompt = await promptStore.addPrompt(
                 promptText,
                 fullResponse,
-                selectedModelConfig.id,
+                selectedModelConfig.modelId,
                 contextRefIds,
-                sourceConversationId || orderedReferences[0]?.id_timestamp,
+                sourceConversationId,
                 sourceSelection
             )
 
@@ -560,7 +526,7 @@ const submit = async () => {
     }
 
     const references = [...selectedReferences.value];
-    await submitPrompt(promptText, references, references[0]?.id_timestamp);
+    await submitPrompt(promptText, references);
     inputContent.value = '';
     selectedReferences.value = [];
     clearMentionState();
@@ -569,14 +535,17 @@ const submit = async () => {
 
 const sendFollowUpQuestionNow = async (payload?: FollowUpSendPayload) => {
     const promptText = payload?.promptText ?? followUpQuestionText.value.trim();
-    const sourceConversation = currentDisplayConversation.value;
     const sourceSelection = payload?.sourceSelection ?? selectionAction.value?.text?.trim();
+    const sourceConversationId = payload?.sourceConversationId ?? selectionAction.value?.sourceConversationId;
+    const sourceConversation = sourceConversationId
+        ? promptStore.findPromptById(sourceConversationId)
+        : currentDisplayConversation.value;
 
     if (!promptText || !sourceSelection || !sourceConversation) {
         return;
     }
 
-    const references = mergeReferences([sourceConversation], followUpSelectedReferences.value);
+    const references = mergeReferences(followUpSelectedReferences.value);
     await submitPrompt(promptText, references, sourceConversation.id_timestamp, sourceSelection);
     closeFollowUpComposer();
 }
@@ -612,4 +581,3 @@ const sendFollowUpQuestionNow = async (payload?: FollowUpSendPayload) => {
     height: 0;
 }
 </style>
-

@@ -4,7 +4,7 @@ export interface Conversation {
     prompt: string; // 提问内容
     answer: string; // ai回答内容
     model?: string;
-    source_conversation_id?: string; // 主追问来源问题 id_timestamp
+    source_conversation_id?: string; // 所选内容追问的来源回答 id_timestamp
     source_selection?: string; // 从上一轮回答中选中的追问片段
     context_refs?: string[];  // 通过 @ 引用的历史对话 id_timestamp 列表
 }
@@ -30,11 +30,6 @@ export interface ModelConfig {
 }
 
 export interface SettingsInterfaceType{
-    // 废弃旧的顶层字段，为了类型兼容暂时保留或改为可选，但核心逻辑使用 models 列表
-    API_KEY?:string; // Deprecated
-    API_URL?:string; // Deprecated
-    customModels?: any[]; // Deprecated
-
     models: ModelConfig[]; // 新的主要配置项
     promptStats: DataStructure;
 }
