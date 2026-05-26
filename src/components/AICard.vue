@@ -219,17 +219,6 @@ const currentDisplayConversation = computed<Conversation | null>(() => {
 
     return historyItem.value;
 })
-const activeSourceConversation = computed<Conversation | null>(() => {
-    if (!historyItem.value) {
-        return null;
-    }
-
-    const sourceConversation = historyItem.value.source_conversation_id
-        ? promptStore.findPromptById(historyItem.value.source_conversation_id)
-        : historyItem.value;
-
-    return sourceConversation?.id_timestamp ? sourceConversation : null;
-})
 
 const todayPromptItems = computed<Conversation[]>(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -523,7 +512,7 @@ const submitPrompt = async (
                 fullResponse,
                 selectedModelConfig.id,
                 contextRefIds,
-                sourceConversationId || orderedReferences[0]?.id_timestamp,
+                sourceConversationId,
                 sourceSelection
             )
 
@@ -561,7 +550,7 @@ const submit = async () => {
     }
 
     const references = [...selectedReferences.value];
-    await submitPrompt(promptText, references, references[0]?.id_timestamp);
+    await submitPrompt(promptText, references);
     inputContent.value = '';
     selectedReferences.value = [];
     clearMentionState();
@@ -580,7 +569,7 @@ const sendFollowUpQuestionNow = async (payload?: FollowUpSendPayload) => {
         return;
     }
 
-    const references = mergeReferences([sourceConversation], followUpSelectedReferences.value);
+    const references = mergeReferences(followUpSelectedReferences.value);
     await submitPrompt(promptText, references, sourceConversation.id_timestamp, sourceSelection);
     closeFollowUpComposer();
 }

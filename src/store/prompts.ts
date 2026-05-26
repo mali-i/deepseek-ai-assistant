@@ -167,10 +167,59 @@ export const usePromptStore = defineStore('prompts',()=>{
         await syncSettings(newStats);
     };
 
+    const cleanupContextSourceConversationIds = async () => {
+        if (!pluginStore.plugin) {
+            return;
+        }
+
+        let hasChanges = false;
+        const newStats = { ...promptStats.value };
+
+        Object.keys(newStats).forEach((date) => {
+            const dayStats = newStats[date];
+            if (!dayStats?.prompt_content) {
+                return;
+            }
+
+            let dayChanged = false;
+            const promptContent = dayStats.prompt_content.map((item: Conversation) => {
+                let nextItem = item;
+
+                if (item.source_conversation_id && !item.source_selection) {
+                    hasChanges = true;
+                    dayChanged = true;
+                    const { source_conversation_id, ...rest } = nextItem;
+                    nextItem = rest;
+                }
+
+                return nextItem;
+            });
+
+            if (dayChanged) {
+                newStats[date] = {
+                    ...dayStats,
+                    prompt_content: promptContent,
+                };
+            }
+        });
+
+        if (!hasChanges) {
+            return;
+        }
+
+        promptStats.value = newStats;
+        await syncSettings(newStats);
+    };
+
+    const initializePromptStats = async () => {
+        await migrateLegacyFollowUps();
+        await cleanupContextSourceConversationIds();
+    };
+
     // 初始化时从插件设置里加载数据
     if (pluginStore.plugin) {
         promptStats.value = { ...pluginStore.plugin.settings.promptStats };
-        void migrateLegacyFollowUps();
+        void initializePromptStats();
     }
 
     async function syncSettings(newStats = promptStats.value) {
