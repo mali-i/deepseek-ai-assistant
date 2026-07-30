@@ -2,7 +2,7 @@
     <div ref="overlayRootRef" data-follow-up-overlay-root class="absolute inset-0 flex flex-row-reverse w-full h-full overflow-hidden bg-[var(--background-primary)] text-[var(--text-normal)]">
         <!-- 右侧边栏 -->
         <div
-            class="relative flex flex-none h-full overflow-hidden bg-[var(--background-secondary)]"
+            class="relative z-10 flex flex-none h-full overflow-hidden bg-[var(--background-secondary)] shadow-[-3px_0_10px_rgba(0,0,0,0.05)]"
             :class="isSidebarOpen ? 'border-l border-[var(--apple-border)]' : 'border-l-0'"
             :style="{ width: isSidebarOpen ? asideWidth + 'px' : collapsedAsideWidth + 'px' }"
         >
@@ -90,7 +90,7 @@
         </div>
 
         <!-- 主内容区 -->
-        <div class="flex h-full flex-1 flex-col overflow-hidden bg-[var(--background-secondary)]">
+        <div class="flex h-full flex-1 flex-col overflow-hidden bg-[var(--background-primary)]">
             <div class="flex h-11 flex-none items-center justify-between border-b border-[var(--apple-border)] px-4">
                 <div class="flex min-w-0 items-center gap-2">
                     <div class="inline-flex min-w-0 items-center gap-1 overflow-hidden select-none">
