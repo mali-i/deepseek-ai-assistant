@@ -40,23 +40,24 @@
             @focusin="isInputAreaFocused = true"
             @focusout="handleInputAreaFocusOut"
         >
-            <button
-                v-if="showCompactInput"
-                type="button"
-                class="floating-input-trigger"
-                title="Ask a new question"
-                aria-label="Open the new question input"
-                @mouseenter="expandInputArea"
-                @click="expandInputArea(true)"
-            >
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    <path d="M12 7v6"></path>
-                    <path d="M9 10h6"></path>
-                </svg>
-            </button>
+            <Transition name="input-composer" mode="out-in">
+                <button
+                    v-if="showCompactInput"
+                    type="button"
+                    class="floating-input-trigger"
+                    title="Ask a new question"
+                    aria-label="Open the new question input"
+                    @mouseenter="expandInputArea"
+                    @click="expandInputArea(true)"
+                >
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        <path d="M12 7v6"></path>
+                        <path d="M9 10h6"></path>
+                    </svg>
+                </button>
 
-            <div v-else class="w-full flex flex-col gap-3">
+                <div v-else class="input-composer-panel w-full flex flex-col gap-3">
                 <!-- 外层输入容器边框（会把已选标签和 textarea 一起框进去） -->
                 <div class="relative w-full rounded-xl bg-transparent transition-all duration-300">
                     <!-- 已选历史上下文标签 -->
@@ -167,7 +168,8 @@
                         </button>
                     </div>
                 </div>
-            </div>
+                </div>
+            </Transition>
         </div>
     </div>
 </template>
@@ -695,5 +697,38 @@ const sendFollowUpQuestionNow = async (payload?: FollowUpSendPayload) => {
     filter: brightness(1.06);
     outline: 2px solid var(--background-modifier-border-focus);
     outline-offset: 2px;
+}
+
+.input-composer-panel {
+    transform-origin: bottom right;
+}
+
+.input-composer-enter-active {
+    overflow: hidden;
+    transition:
+        max-height 360ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 240ms ease 60ms,
+        transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.input-composer-enter-from {
+    max-height: 0;
+    opacity: 0;
+    transform: translate(14px, 10px) scale(0.94);
+}
+
+.input-composer-enter-to {
+    max-height: 420px;
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+}
+
+.input-composer-leave-active {
+    transition: opacity 100ms ease, transform 100ms ease;
+}
+
+.input-composer-leave-to {
+    opacity: 0;
+    transform: scale(0.94);
 }
 </style>
