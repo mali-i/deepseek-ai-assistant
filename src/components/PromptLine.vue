@@ -54,15 +54,15 @@
     </div>
 
     <div class="flex-1 overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-black/10 dark:scrollbar-thumb-white/10">
-      <div class="pl-2">
-        <div class="relative ml-2 space-y-6 pb-2">
-          <div v-if="sortedPromptContent.length === 0" class="pl-6 text-sm text-[var(--text-muted)] italic">
+      <div>
+        <div class="relative space-y-6 pb-2">
+          <div v-if="sortedPromptContent.length === 0" class="pl-4 text-sm text-[var(--text-muted)] italic">
             No prompts found.
           </div>
           <div
             v-for="(item, index) in sortedPromptContent"
             :key="item.id_timestamp"
-            class="relative pl-6 group"
+            class="relative pl-4 group"
           >
             <div v-if="index !== sortedPromptContent.length - 1" class="absolute left-0 top-3 h-[calc(100%+24px)] w-[2px] bg-[var(--background-modifier-border)]"></div>
             <div class="absolute -left-[4.5px] top-3 w-[11px] h-[11px] rounded-full bg-[#007AFF]/50 border-2 border-[#007AFF]/50 group-hover:scale-125 group-hover:shadow-[0_0_0_3px_rgba(0,122,255,0.2)] transition-all duration-200 z-10"></div>
