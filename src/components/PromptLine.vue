@@ -1,9 +1,9 @@
 <template>
   <div class="flex flex-col h-full bg-transparent overflow-hidden" @click="clearSelection">
-    <div class="flex-none px-4 pt-2 pb-2">
+    <div class="flex-none px-3 pt-2 pb-2">
       <div class="flex items-center gap-2 h-8">
-        <div v-if="!isSearchActive" class="ml-1 flex flex-1 items-center gap-1 overflow-hidden select-none">
-          <span class="inline-flex items-center rounded-full bg-[var(--background-modifier-hover)] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+        <div v-if="!isSearchActive" class="flex flex-1 items-center gap-1 overflow-hidden select-none">
+          <span class="inline-flex items-center justify-start text-left text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
             Date
           </span>
           <!-- “>”符号 -->
@@ -54,15 +54,15 @@
     </div>
 
     <div class="flex-1 overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-black/10 dark:scrollbar-thumb-white/10">
-      <div class="pl-2">
-        <div class="relative ml-2 space-y-6 pb-2">
-          <div v-if="sortedPromptContent.length === 0" class="pl-6 text-sm text-[var(--text-muted)] italic">
+      <div>
+        <div class="relative space-y-6 pb-2">
+          <div v-if="sortedPromptContent.length === 0" class="pl-4 text-sm text-[var(--text-muted)] italic">
             No prompts found.
           </div>
           <div
             v-for="(item, index) in sortedPromptContent"
             :key="item.id_timestamp"
-            class="relative pl-6 group"
+            class="relative pl-4 group"
           >
             <div v-if="index !== sortedPromptContent.length - 1" class="absolute left-0 top-3 h-[calc(100%+24px)] w-[2px] bg-[var(--background-modifier-border)]"></div>
             <div class="absolute -left-[4.5px] top-3 w-[11px] h-[11px] rounded-full bg-[#007AFF]/50 border-2 border-[#007AFF]/50 group-hover:scale-125 group-hover:shadow-[0_0_0_3px_rgba(0,122,255,0.2)] transition-all duration-200 z-10"></div>
@@ -72,31 +72,57 @@
                 {{ formatTime(item.id_timestamp) }}
               </div>
 
-              <button
-                @click.stop="copyLink(item)"
-                class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[var(--background-modifier-hover)] text-[var(--text-muted)] hover:text-[var(--text-normal)] transition-all duration-200"
-                title="Copy Link to Note"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                </svg>
-              </button>
+              <div class="flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
+                <button
+                  @click.stop="copyLink(item)"
+                  class="p-1 rounded hover:bg-[var(--background-modifier-hover)] text-[var(--text-muted)] hover:text-[var(--text-normal)] transition-colors duration-200"
+                  title="Copy Link to Note"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="history-delete-button rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors duration-200"
+                  title="Delete this history record"
+                  @click.stop="deleteItem(item)"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
 
-            <div class="prompt-content bg-[var(--background-primary)] rounded-lg p-3 cursor-pointer transition-all duration-300 border border-[var(--background-modifier-border)] select-text group-hover:border-apple-blue group-hover:shadow-md group-active:border-apple-blue group-active:shadow-lg relative" @click="clickItem(item)">
+            <div class="prompt-content rounded-lg p-3 cursor-pointer transition-all duration-300 border border-[var(--background-modifier-border)] select-text group-hover:border-apple-blue group-hover:shadow-[0_0_8px_var(--background-modifier-box-shadow)] group-active:border-apple-blue group-active:shadow-[0_0_10px_var(--background-modifier-box-shadow)] relative" @click="clickItem(item)">
               <div class="font-sans text-[13px] leading-relaxed text-[var(--text-normal)] line-clamp-3 group-hover:line-clamp-none overflow-hidden select-text transition-all duration-300">{{ item.prompt }}</div>
               <div
                 v-if="item.source_selection"
-                class="mt-3 rounded-lg border border-[var(--background-modifier-border)] bg-[var(--background-secondary)] px-3 py-2 transition-colors hover:border-apple-blue hover:bg-[var(--background-modifier-hover)]"
+                class="mt-2.5 flex items-start gap-2 rounded-md bg-[var(--background-modifier-hover)] px-2.5 py-1 opacity-70 transition-all hover:opacity-100"
                 @click.stop="clickSourceSelection(item)"
               >
-                <!-- <div class="mb-1 text-[10px] uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                  Selected excerpt
-                </div> -->
-                <div class="text-xs leading-relaxed text-[var(--text-muted)] line-clamp-3 group-hover:line-clamp-none overflow-hidden transition-all duration-300">
+                <svg class="mt-0.5 shrink-0 text-[var(--text-muted)]" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M7.17 6A5.17 5.17 0 0 0 2 11.17V18h8v-7H5.08A2.17 2.17 0 0 1 7.17 9H10V6H7.17Zm12 0A5.17 5.17 0 0 0 14 11.17V18h8v-7h-4.92A2.17 2.17 0 0 1 19.17 9H22V6h-2.83Z"/>
+                </svg>
+                <div class="min-w-0 text-[11px] leading-4 text-[var(--text-muted)] line-clamp-2 group-hover:line-clamp-none overflow-hidden transition-all duration-300">
                   {{ item.source_selection }}
                 </div>
+              </div>
+              <div
+                v-if="getContextReferences(item).length"
+                class="mt-1 flex flex-col gap-0.5"
+              >
+                <button
+                  v-for="reference in getContextReferences(item)"
+                  :key="reference.id_timestamp"
+                  type="button"
+                  class="context-reference-button flex w-full min-w-0 items-center rounded-md border-0 bg-[var(--background-modifier-hover)] text-left text-[11px] leading-4 text-[var(--text-muted)] opacity-70 transition-all hover:opacity-100"
+                  :title="reference.prompt"
+                  @click.stop="clickContextReference(reference.id_timestamp)"
+                >
+                  <span class="flex w-5 shrink-0 items-center justify-start font-medium text-apple-blue">@</span>
+                  <span class="min-w-0 flex-1 truncate py-1">{{ buildPromptPreview(reference.prompt) }}</span>
+                </button>
               </div>
             </div>
           </div>
@@ -111,6 +137,7 @@ import { ref, computed, nextTick, onMounted } from 'vue';
 import { Notice } from 'obsidian';
 import { usePromptStore } from '../store/prompts'
 import type { Conversation } from '../settings'
+import { buildPromptPreview } from '../composables/usePromptMentions'
 
 const isInputFocused = ref(false);
 const promptStore = usePromptStore()
@@ -226,6 +253,16 @@ const clickSourceSelection = (item: Conversation) => {
   void promptStore.findAndSelectPromptBySourceSelection(item.source_selection, item.source_conversation_id, item.id_timestamp)
 }
 
+const getContextReferences = (item: Conversation) => {
+  return (item.context_refs || [])
+    .map((id) => promptStore.findPromptById(id))
+    .filter((reference): reference is Conversation => Boolean(reference));
+}
+
+const clickContextReference = (id: string) => {
+  promptStore.findAndSelectPromptById(id);
+}
+
 const copyLink = (item: Conversation) => {
   let linkText = 'AI Chat';
   if (item && item.prompt) {
@@ -236,6 +273,20 @@ const copyLink = (item: Conversation) => {
   const link = `[${linkText}](obsidian://deepseek-ai-assistant?id=${item.id_timestamp} "Open plugin:deepseek-ai-assistant")`;
   navigator.clipboard.writeText(link);
   new Notice('Chat link copied to clipboard!');
+}
+
+const deleteItem = async (item: Conversation) => {
+  const promptPreview = buildPromptPreview(item.prompt);
+  if (!window.confirm(`Delete "${promptPreview}" from history?`)) {
+    return;
+  }
+
+  const deleted = await promptStore.deletePrompt(item.id_timestamp);
+  if (deleted) {
+    new Notice('History record deleted.');
+  } else {
+    new Notice('History record no longer exists.');
+  }
 }
 
 const clearSelection = (event: MouseEvent) => {
@@ -250,3 +301,27 @@ const clearSelection = (event: MouseEvent) => {
   }
 }
 </script>
+
+<style scoped>
+.context-reference-button {
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  justify-content: flex-start !important;
+  box-shadow: none !important;
+}
+
+.history-delete-button {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-muted) !important;
+}
+
+.history-delete-button:hover,
+.history-delete-button:focus-visible {
+  background: rgba(255, 59, 48, 0.14) !important;
+  color: var(--text-error) !important;
+}
+</style>

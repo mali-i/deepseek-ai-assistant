@@ -11,7 +11,18 @@
             <div v-if="isThinking" class="absolute inset-0 z-10">
                 <ThinkingClue />
             </div>
-            <div ref="answerContainerRef" class="answer-field absolute inset-0 overflow-y-auto p-6 font-sans leading-relaxed select-text cursor-text prose dark:prose-invert max-w-none"></div>
+            <div
+                v-if="historyModel"
+                class="absolute right-4 top-0 z-10 flex max-w-[calc(100%-2rem)] items-center gap-1 rounded-md border border-[var(--background-modifier-border)] bg-[var(--background-primary)]/90 px-1.5 py-0.5 text-[10px] leading-none text-[var(--text-muted)] shadow-sm backdrop-blur-[2px] pointer-events-none"
+                :title="`Model used for this response: ${historyModel}`"
+            >
+                <span class="shrink-0">Model</span>
+                <span class="truncate font-mono text-[var(--text-normal)]">{{ historyModel }}</span>
+            </div>
+            <div
+                ref="answerContainerRef"
+                class="answer-field absolute inset-0 overflow-y-auto px-6 pb-6 pt-2 font-sans leading-relaxed select-text cursor-text prose dark:prose-invert max-w-none"
+            ></div>
             <FollowUpQuestionCard
                 :selection-action="selectionAction"
                 :is-follow-up-composer-open="isFollowUpComposerOpen"
@@ -31,8 +42,32 @@
         </div>
 
         <!-- Input Area -->
-        <div class="flex-none">
-            <div class="w-full flex flex-col gap-3">
+        <div
+            ref="inputAreaRef"
+            class="relative flex-none"
+            :class="{ 'input-area--compact': showCompactInput }"
+            @mouseenter="handleInputAreaMouseEnter"
+            @mouseleave="handleInputAreaMouseLeave"
+            @focusin="isInputAreaFocused = true"
+            @focusout="handleInputAreaFocusOut"
+        >
+            <Transition name="input-composer" mode="out-in">
+                <button
+                    v-if="showCompactInput"
+                    type="button"
+                    class="floating-input-trigger"
+                    data-tooltip="Ask a new question"
+                    aria-label="Ask a new question"
+                    @click="expandInputArea(true)"
+                >
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        <path d="M12 7v6"></path>
+                        <path d="M9 10h6"></path>
+                    </svg>
+                </button>
+
+                <div v-else class="input-composer-panel w-full flex flex-col gap-3">
                 <!-- 外层输入容器边框（会把已选标签和 textarea 一起框进去） -->
                 <div class="relative w-full rounded-xl bg-transparent transition-all duration-300">
                     <!-- 已选历史上下文标签 -->
@@ -143,7 +178,8 @@
                         </button>
                     </div>
                 </div>
-            </div>
+                </div>
+            </Transition>
         </div>
     </div>
 </template>
@@ -202,15 +238,29 @@ const promptStore = usePromptStore()
 const chatModel = ref(availableModels.value[0]?.id || 'deepseek-reasoner')
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const answerContainerRef = ref<HTMLElement | null>(null);
+const inputAreaRef = ref<HTMLElement | null>(null);
 const selectedReferences = ref<Conversation[]>([]);
 const selectionAction = ref<SelectionActionState | null>(null);
 const isFollowUpComposerOpen = ref(false);
 const followUpQuestionText = ref('');
 const followUpSelectedReferences = ref<Conversation[]>([]);
+const isInputAreaExpanded = ref(false);
+const isInputAreaHovered = ref(false);
+const isInputAreaFocused = ref(false);
 
 const historyItem = computed(() => promptStore.historyCard)
 const historyAnswer = computed(()=>{
     return historyItem.value?.answer || ''
+})
+const historyModel = computed(() => {
+    return historyItem.value?.model?.trim() || ''
+})
+const showCompactInput = computed(() => {
+    return Boolean(historyAnswer.value)
+        && !isLoading.value
+        && !isInputAreaExpanded.value
+        && !inputContent.value.trim()
+        && selectedReferences.value.length === 0;
 })
 const currentDisplayConversation = computed<Conversation | null>(() => {
     if (!historyItem.value?.id_timestamp) {
@@ -260,6 +310,47 @@ const adjustHeight = () => {
     }
 }
 
+const expandInputArea = (focusInput = false) => {
+    isInputAreaExpanded.value = true;
+
+    if (focusInput) {
+        nextTick(() => textareaRef.value?.focus());
+    }
+};
+
+const collapseInputAreaIfIdle = () => {
+    if (
+        !historyAnswer.value
+        || isLoading.value
+        || isInputAreaHovered.value
+        || isInputAreaFocused.value
+        || inputContent.value.trim()
+        || selectedReferences.value.length
+    ) {
+        return;
+    }
+
+    isInputAreaExpanded.value = false;
+};
+
+const handleInputAreaMouseEnter = () => {
+    isInputAreaHovered.value = true;
+};
+
+const handleInputAreaMouseLeave = () => {
+    isInputAreaHovered.value = false;
+    collapseInputAreaIfIdle();
+};
+
+const handleInputAreaFocusOut = () => {
+    window.setTimeout(() => {
+        isInputAreaFocused.value = Boolean(
+            inputAreaRef.value?.contains(document.activeElement)
+        );
+        collapseInputAreaIfIdle();
+    }, 0);
+};
+
 watch(inputContent, () => {
     nextTick(adjustHeight);
     nextTick(updateMentionState);
@@ -267,10 +358,15 @@ watch(inputContent, () => {
 
 watch(historyItem, (item) => {
     if (item) {
+        if (!inputContent.value.trim() && selectedReferences.value.length === 0) {
+            isInputAreaExpanded.value = false;
+            isInputAreaFocused.value = false;
+        }
         return;
     }
 
     hasResponse.value = false;
+    isInputAreaExpanded.value = false;
     clearSelectionAction();
 });
 
@@ -529,6 +625,8 @@ const submit = async () => {
     await submitPrompt(promptText, references);
     inputContent.value = '';
     selectedReferences.value = [];
+    isInputAreaExpanded.value = false;
+    isInputAreaFocused.value = false;
     clearMentionState();
     clearSelectionAction();
 }
@@ -579,5 +677,97 @@ const sendFollowUpQuestionNow = async (payload?: FollowUpSendPayload) => {
     display: none;
     width: 0;
     height: 0;
+}
+
+.input-area--compact {
+    height: 0;
+}
+
+.floating-input-trigger {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    width: 46px;
+    height: 46px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 9999px;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+    transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+}
+
+.floating-input-trigger::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 8px);
+    padding: 5px 9px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-primary-alt);
+    color: var(--text-normal);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.25;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity 70ms ease, transform 70ms ease;
+}
+
+.floating-input-trigger:hover::after,
+.floating-input-trigger:focus-visible::after {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.floating-input-trigger:hover,
+.floating-input-trigger:focus-visible {
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+    filter: brightness(1.06);
+    outline: 2px solid var(--background-modifier-border-focus);
+    outline-offset: 2px;
+}
+
+.input-composer-panel {
+    transform-origin: bottom right;
+}
+
+.input-composer-enter-active {
+    overflow: hidden;
+    transition:
+        max-height 360ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 240ms ease 60ms,
+        transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.input-composer-enter-from {
+    max-height: 0;
+    opacity: 0;
+    transform: translate(14px, 10px) scale(0.94);
+}
+
+.input-composer-enter-to {
+    max-height: 420px;
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+}
+
+.input-composer-leave-active {
+    transition: opacity 100ms ease, transform 100ms ease;
+}
+
+.input-composer-leave-to {
+    opacity: 0;
+    transform: scale(0.94);
 }
 </style>
