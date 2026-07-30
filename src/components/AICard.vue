@@ -11,7 +11,18 @@
             <div v-if="isThinking" class="absolute inset-0 z-10">
                 <ThinkingClue />
             </div>
-            <div ref="answerContainerRef" class="answer-field absolute inset-0 overflow-y-auto p-6 font-sans leading-relaxed select-text cursor-text prose dark:prose-invert max-w-none"></div>
+            <div
+                v-if="historyModel"
+                class="absolute right-4 top-0 z-10 flex max-w-[calc(100%-2rem)] items-center gap-1 rounded-md border border-[var(--background-modifier-border)] bg-[var(--background-primary)]/90 px-1.5 py-0.5 text-[10px] leading-none text-[var(--text-muted)] shadow-sm backdrop-blur-[2px] pointer-events-none"
+                :title="`Model used for this response: ${historyModel}`"
+            >
+                <span class="shrink-0">Model</span>
+                <span class="truncate font-mono text-[var(--text-normal)]">{{ historyModel }}</span>
+            </div>
+            <div
+                ref="answerContainerRef"
+                class="answer-field absolute inset-0 overflow-y-auto px-6 pb-6 pt-2 font-sans leading-relaxed select-text cursor-text prose dark:prose-invert max-w-none"
+            ></div>
             <FollowUpQuestionCard
                 :selection-action="selectionAction"
                 :is-follow-up-composer-open="isFollowUpComposerOpen"
@@ -240,6 +251,9 @@ const isInputAreaFocused = ref(false);
 const historyItem = computed(() => promptStore.historyCard)
 const historyAnswer = computed(()=>{
     return historyItem.value?.answer || ''
+})
+const historyModel = computed(() => {
+    return historyItem.value?.model?.trim() || ''
 })
 const showCompactInput = computed(() => {
     return Boolean(historyAnswer.value)
