@@ -12,24 +12,21 @@ var rect_count_x = ref(0)
 const scrollContainer = ref(null)
 const isDragging = ref(false)
 const hasInitializedScroll = ref(false)
-const lastContainerWidth = ref(0)
 let startX
 let scrollLeft
 
-const syncScrollWithRightEdge = (previousWidth, nextWidth) => {
+const syncScrollWithLeftEdge = () => {
     if (!scrollContainer.value || isDragging.value || !hasInitializedScroll.value) {
         return
     }
 
     const nextMaxScroll = Math.max(scrollContainer.value.scrollWidth - scrollContainer.value.clientWidth, 0)
-    const nextScrollLeft = scrollContainer.value.scrollLeft + previousWidth - nextWidth
-    scrollContainer.value.scrollLeft = Math.min(Math.max(nextScrollLeft, 0), nextMaxScroll)
+    scrollContainer.value.scrollLeft = Math.min(Math.max(scrollContainer.value.scrollLeft, 0), nextMaxScroll)
 }
 
 const observer = new ResizeObserver(entries =>{
     for(let entry of entries){
         var newWidth = entry.contentRect.width
-        const previousWidth = lastContainerWidth.value || newWidth
         const min_margin = 10
         const col_width = pixel_width.value + pixel_margin.value
         
@@ -51,7 +48,6 @@ const observer = new ResizeObserver(entries =>{
         const shouldRedraw = rect_count_x.value !== nextRectCount || svg_left_or_right_margin.value !== nextMargin
         rect_count_x.value = nextRectCount
         svg_left_or_right_margin.value = nextMargin
-        lastContainerWidth.value = newWidth
         
         // If it fits exactly or is smaller than 53, we don't need to center it with large margins
         // because it will be scrollable.
@@ -60,7 +56,7 @@ const observer = new ResizeObserver(entries =>{
             continue
         }
 
-        syncScrollWithRightEdge(previousWidth, newWidth)
+        syncScrollWithLeftEdge()
     }
 })
 
@@ -86,7 +82,6 @@ onMounted(async ()=>{
     // console.log('这里是onMounted钩子')
     await nextTick() // 等待DOM更新完成
     if (scrollContainer.value) {
-        lastContainerWidth.value = scrollContainer.value.clientWidth
         observer.observe(scrollContainer.value)
     }
     draw_svg();
@@ -95,10 +90,7 @@ onMounted(async ()=>{
 const draw_svg = async ()=>{
     await nextTick() // 等待DOM更新完成
     const container = scrollContainer.value
-    const previousMaxScroll = container ? Math.max(container.scrollWidth - container.clientWidth, 0) : 0
-    const previousDistanceFromRight = container
-        ? Math.max(previousMaxScroll - container.scrollLeft, 0)
-        : 0
+    const previousScrollLeft = container ? container.scrollLeft : 0
 
     d3.select('#svg_container').selectAll('rect').remove()
     d3.select('#svg_container').selectAll('text').remove()
@@ -108,20 +100,23 @@ const draw_svg = async ()=>{
     // svg中的日期方块的渲染布局应该是先纵向布局，再横向布局。纵向布局7个日期方块，再横向布局
     // 要从jsonData中读取对应个数的日期方, 从当前日期往前推 rect_count_x * 7 个日期方块
     // 把计算出来的日期方块与svg中的rect进行绑定
-    const rect_count = rect_count_x.value * 7
-    // 从今天倒推 rect_count 天，放在一个列表中
+    // 从左到右按周向历史日期排列，每列内从上到下由旧到新。
+    // 因此今天固定位于最左列的最下方。
     const today = new Date()
     var date_list = []
-    for(let i=0; i<rect_count; i++){
-        const date = new Date()
-        date.setDate(today.getDate() - i)
-        const date_str = date.toISOString().split('T')[0] // 只取日期部分
-        // 查找 promptStats 中是否有这个日期的键
-        let prompts_num = 0
-        if(promptStore.promptStats[date_str]){
-            prompts_num = promptStore.promptStats[date_str].num
-        } 
-        date_list.unshift({"date": date_str, "prompts_num": prompts_num || 0}) // 新日期插入到数组前面
+    for(let col = 0; col < rect_count_x.value; col++){
+        for(let row = 0; row < 7; row++){
+            const daysAgo = col * 7 + (6 - row)
+            const date = new Date(today)
+            date.setDate(today.getDate() - daysAgo)
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, '0')
+            const day = String(date.getDate()).padStart(2, '0')
+            const date_str = `${year}-${month}-${day}`
+            // 查找 promptStats 中是否有这个日期的键
+            const prompts_num = promptStore.promptStats[date_str]?.num || 0
+            date_list.push({"date": date_str, "prompts_num": prompts_num})
+        }
     }
     // console.log(date_list)
 
@@ -133,13 +128,14 @@ const draw_svg = async ()=>{
     const month_labels = []
     let last_month = -1
     let last_year = -1
-    date_list.forEach((d, i) => {
+    for (let col = 0; col < rect_count_x.value; col++) {
+        // 使用每列最下方（该列最新）的日期生成月份标签。
+        const d = date_list[col * 7 + 6]
         const date = new Date(d.date)
         const month = date.getMonth()
         const year = date.getFullYear()
         
         if (month !== last_month || year !== last_year) {
-            const col = Math.floor(i / 7)
             // Only add if it's not too close to the previous label (at least 3 columns apart)
             if (month_labels.length === 0 || col - month_labels[month_labels.length-1].col >= 3) {
                 month_labels.push({
@@ -147,11 +143,11 @@ const draw_svg = async ()=>{
                     year: year,
                     col: col
                 })
+                last_month = month
+                last_year = year
             }
-            last_month = month
-            last_year = year
         }
-    })
+    }
 
     // Finalize label names: show year on first, last, and when year changes
     month_labels.forEach((label, idx) => {
@@ -215,7 +211,7 @@ const draw_svg = async ()=>{
     const svgHeight = svg_top_bottom_margin.value * 2 + month_label_height + (pixel_width.value + pixel_margin.value) * 7 - pixel_margin.value
     d3.select('#svg_container').attr('height', svgHeight)
 
-    // 绘制完成后，保持当前相对右侧的位置；仅首次渲染时显示最新日期。
+    // 绘制完成后保持当前滚动位置；仅首次渲染时显示左侧的最新日期。
     nextTick(() => {
         if (!scrollContainer.value || isDragging.value) {
             return
@@ -224,12 +220,12 @@ const draw_svg = async ()=>{
         const nextMaxScroll = Math.max(scrollContainer.value.scrollWidth - scrollContainer.value.clientWidth, 0)
 
         if (!hasInitializedScroll.value) {
-            scrollContainer.value.scrollLeft = nextMaxScroll
+            scrollContainer.value.scrollLeft = 0
             hasInitializedScroll.value = true
             return
         }
 
-        scrollContainer.value.scrollLeft = Math.max(nextMaxScroll - previousDistanceFromRight, 0)
+        scrollContainer.value.scrollLeft = Math.min(previousScrollLeft, nextMaxScroll)
     })
 }
 
