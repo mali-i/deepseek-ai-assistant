@@ -45,9 +45,8 @@
                     v-if="showCompactInput"
                     type="button"
                     class="floating-input-trigger"
-                    title="Ask a new question"
-                    aria-label="Open the new question input"
-                    @mouseenter="expandInputArea"
+                    data-tooltip="Ask a new question"
+                    aria-label="Ask a new question"
                     @click="expandInputArea(true)"
                 >
                     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -322,7 +321,6 @@ const collapseInputAreaIfIdle = () => {
 
 const handleInputAreaMouseEnter = () => {
     isInputAreaHovered.value = true;
-    expandInputArea();
 };
 
 const handleInputAreaMouseLeave = () => {
@@ -688,6 +686,33 @@ const sendFollowUpQuestionNow = async (payload?: FollowUpSendPayload) => {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
     cursor: pointer;
     transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+}
+
+.floating-input-trigger::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 8px);
+    padding: 5px 9px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-primary-alt);
+    color: var(--text-normal);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.25;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity 70ms ease, transform 70ms ease;
+}
+
+.floating-input-trigger:hover::after,
+.floating-input-trigger:focus-visible::after {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .floating-input-trigger:hover,
