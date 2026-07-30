@@ -1,9 +1,9 @@
 <template>
   <div class="flex flex-col h-full bg-transparent overflow-hidden" @click="clearSelection">
-    <div class="flex-none px-4 pt-2 pb-2">
+    <div class="flex-none px-3 pt-2 pb-2">
       <div class="flex items-center gap-2 h-8">
-        <div v-if="!isSearchActive" class="ml-1 flex flex-1 items-center gap-1 overflow-hidden select-none">
-          <span class="inline-flex items-center rounded-full bg-[var(--background-modifier-hover)] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+        <div v-if="!isSearchActive" class="flex flex-1 items-center gap-1 overflow-hidden select-none">
+          <span class="inline-flex items-center justify-start text-left text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
             Date
           </span>
           <!-- “>”符号 -->
