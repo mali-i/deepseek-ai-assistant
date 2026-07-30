@@ -219,9 +219,11 @@ const handleDrag = (e: MouseEvent) => {
   
   const delta = startX - e.clientX;
   const newWidth = startWidth + delta;
+  const rootWidth = overlayRootRef.value?.getBoundingClientRect().width ?? window.innerWidth;
+  const minWidth = Math.min(200, rootWidth);
   
-  // 限制最小宽度和最大宽度
-  asideWidth.value = Math.max(200, Math.min(newWidth, 600)); 
+  // 最小宽度为 200px，最大宽度跟随插件根容器
+  asideWidth.value = Math.max(minWidth, Math.min(newWidth, rootWidth));
 };
 
 // 停止拖拽
