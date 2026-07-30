@@ -72,16 +72,26 @@
                 {{ formatTime(item.id_timestamp) }}
               </div>
 
-              <button
-                @click.stop="copyLink(item)"
-                class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[var(--background-modifier-hover)] text-[var(--text-muted)] hover:text-[var(--text-normal)] transition-all duration-200"
-                title="Copy Link to Note"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                </svg>
-              </button>
+              <div class="flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
+                <button
+                  @click.stop="copyLink(item)"
+                  class="p-1 rounded hover:bg-[var(--background-modifier-hover)] text-[var(--text-muted)] hover:text-[var(--text-normal)] transition-colors duration-200"
+                  title="Copy Link to Note"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="history-delete-button rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors duration-200"
+                  title="Delete this history record"
+                  @click.stop="deleteItem(item)"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
 
             <div class="prompt-content rounded-lg p-3 cursor-pointer transition-all duration-300 border border-[var(--background-modifier-border)] select-text group-hover:border-apple-blue group-hover:shadow-[0_0_8px_var(--background-modifier-box-shadow)] group-active:border-apple-blue group-active:shadow-[0_0_10px_var(--background-modifier-box-shadow)] relative" @click="clickItem(item)">
@@ -265,6 +275,20 @@ const copyLink = (item: Conversation) => {
   new Notice('Chat link copied to clipboard!');
 }
 
+const deleteItem = async (item: Conversation) => {
+  const promptPreview = buildPromptPreview(item.prompt);
+  if (!window.confirm(`Delete "${promptPreview}" from history?`)) {
+    return;
+  }
+
+  const deleted = await promptStore.deletePrompt(item.id_timestamp);
+  if (deleted) {
+    new Notice('History record deleted.');
+  } else {
+    new Notice('History record no longer exists.');
+  }
+}
+
 const clearSelection = (event: MouseEvent) => {
   const target = event.target as HTMLElement;
 
@@ -286,5 +310,18 @@ const clearSelection = (event: MouseEvent) => {
   padding: 0 !important;
   justify-content: flex-start !important;
   box-shadow: none !important;
+}
+
+.history-delete-button {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-muted) !important;
+}
+
+.history-delete-button:hover,
+.history-delete-button:focus-visible {
+  background: rgba(255, 59, 48, 0.14) !important;
+  color: var(--text-error) !important;
 }
 </style>

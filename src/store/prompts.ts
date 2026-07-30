@@ -271,6 +271,36 @@ export const usePromptStore = defineStore('prompts',()=>{
         return newPrompt;
     }
 
+    async function deletePrompt(id: string) {
+        const found = findPromptLocationById(id);
+        if (!found) {
+            return false;
+        }
+
+        const newStats = { ...promptStats.value };
+        const dayStats = newStats[found.date];
+        const promptContent = dayStats.prompt_content.filter(
+            (item: Conversation) => item.id_timestamp !== id
+        );
+
+        if (promptContent.length === 0) {
+            delete newStats[found.date];
+        } else {
+            newStats[found.date] = {
+                ...dayStats,
+                num: promptContent.length,
+                prompt_content: promptContent,
+            };
+        }
+
+        promptStats.value = newStats;
+        if (historyCard.value?.id_timestamp === id) {
+            updateHistoryCard(null);
+        }
+        await syncSettings(newStats);
+        return true;
+    }
+
     function updateHistoryCard(item: Conversation | null){
         historyCard.value = item
         // console.log('item被点击')
@@ -304,6 +334,7 @@ export const usePromptStore = defineStore('prompts',()=>{
     return {
         promptStats,
         addPrompt,
+        deletePrompt,
         selectedDate,
         updateHistoryCard,
         historyCard,
