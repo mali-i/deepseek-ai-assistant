@@ -84,11 +84,11 @@
               </button>
             </div>
 
-            <div class="prompt-content bg-[var(--background-primary)] rounded-lg p-3 cursor-pointer transition-all duration-300 border border-[var(--background-modifier-border)] select-text group-hover:border-apple-blue group-hover:shadow-md group-active:border-apple-blue group-active:shadow-lg relative" @click="clickItem(item)">
+            <div class="prompt-content rounded-lg p-3 cursor-pointer transition-all duration-300 border border-[var(--background-modifier-border)] select-text group-hover:border-apple-blue group-hover:shadow-md group-active:border-apple-blue group-active:shadow-lg relative" @click="clickItem(item)">
               <div class="font-sans text-[13px] leading-relaxed text-[var(--text-normal)] line-clamp-3 group-hover:line-clamp-none overflow-hidden select-text transition-all duration-300">{{ item.prompt }}</div>
               <div
                 v-if="item.source_selection"
-                class="mt-3 rounded-lg border border-[var(--background-modifier-border)] bg-[var(--background-secondary)] px-3 py-2 transition-colors hover:border-apple-blue hover:bg-[var(--background-modifier-hover)]"
+                class="mt-3 rounded-lg border border-[var(--background-modifier-border)] bg-[var(--background-modifier-hover)] px-3 py-2 transition-colors hover:border-apple-blue"
                 @click.stop="clickSourceSelection(item)"
               >
                 <!-- <div class="mb-1 text-[10px] uppercase tracking-[0.14em] text-[var(--text-muted)]">
