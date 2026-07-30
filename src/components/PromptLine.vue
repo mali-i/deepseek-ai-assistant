@@ -84,17 +84,17 @@
               </button>
             </div>
 
-            <div class="prompt-content rounded-lg p-3 cursor-pointer transition-all duration-300 border border-[var(--background-modifier-border)] select-text group-hover:border-apple-blue group-hover:shadow-md group-active:border-apple-blue group-active:shadow-lg relative" @click="clickItem(item)">
+            <div class="prompt-content rounded-lg p-3 cursor-pointer transition-all duration-300 border border-[var(--background-modifier-border)] select-text group-hover:border-apple-blue group-hover:shadow-[0_0_8px_var(--background-modifier-box-shadow)] group-active:border-apple-blue group-active:shadow-[0_0_10px_var(--background-modifier-box-shadow)] relative" @click="clickItem(item)">
               <div class="font-sans text-[13px] leading-relaxed text-[var(--text-normal)] line-clamp-3 group-hover:line-clamp-none overflow-hidden select-text transition-all duration-300">{{ item.prompt }}</div>
               <div
                 v-if="item.source_selection"
-                class="mt-2.5 flex items-start gap-2 rounded-md bg-[var(--background-modifier-hover)] px-2.5 py-1 transition-opacity hover:opacity-100"
+                class="mt-2.5 flex items-start gap-2 rounded-md bg-[var(--background-modifier-hover)] px-2.5 py-1 opacity-70 transition-all hover:opacity-100"
                 @click.stop="clickSourceSelection(item)"
               >
-                <svg class="mt-0.5 shrink-0 text-[var(--text-muted)] opacity-50" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <svg class="mt-0.5 shrink-0 text-[var(--text-muted)]" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M7.17 6A5.17 5.17 0 0 0 2 11.17V18h8v-7H5.08A2.17 2.17 0 0 1 7.17 9H10V6H7.17Zm12 0A5.17 5.17 0 0 0 14 11.17V18h8v-7h-4.92A2.17 2.17 0 0 1 19.17 9H22V6h-2.83Z"/>
                 </svg>
-                <div class="min-w-0 text-[11px] leading-4 text-[var(--text-muted)] opacity-75 line-clamp-2 group-hover:line-clamp-none overflow-hidden transition-all duration-300">
+                <div class="min-w-0 text-[11px] leading-4 text-[var(--text-muted)] line-clamp-2 group-hover:line-clamp-none overflow-hidden transition-all duration-300">
                   {{ item.source_selection }}
                 </div>
               </div>
@@ -110,7 +110,7 @@
                   :title="reference.prompt"
                   @click.stop="clickContextReference(reference.id_timestamp)"
                 >
-                  <span class="flex w-5 shrink-0 items-center justify-start font-medium text-apple-blue opacity-70">@</span>
+                  <span class="flex w-5 shrink-0 items-center justify-start font-medium text-apple-blue">@</span>
                   <span class="min-w-0 flex-1 truncate py-1">{{ buildPromptPreview(reference.prompt) }}</span>
                 </button>
               </div>
