@@ -88,15 +88,31 @@
               <div class="font-sans text-[13px] leading-relaxed text-[var(--text-normal)] line-clamp-3 group-hover:line-clamp-none overflow-hidden select-text transition-all duration-300">{{ item.prompt }}</div>
               <div
                 v-if="item.source_selection"
-                class="mt-3 rounded-lg border border-[var(--background-modifier-border)] bg-[var(--background-modifier-hover)] px-3 py-2 transition-colors hover:border-apple-blue"
+                class="mt-2.5 flex items-start gap-2 rounded-md bg-[var(--background-modifier-hover)] px-2.5 py-1 transition-opacity hover:opacity-100"
                 @click.stop="clickSourceSelection(item)"
               >
-                <!-- <div class="mb-1 text-[10px] uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                  Selected excerpt
-                </div> -->
-                <div class="text-xs leading-relaxed text-[var(--text-muted)] line-clamp-3 group-hover:line-clamp-none overflow-hidden transition-all duration-300">
+                <svg class="mt-0.5 shrink-0 text-[var(--text-muted)] opacity-50" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M7.17 6A5.17 5.17 0 0 0 2 11.17V18h8v-7H5.08A2.17 2.17 0 0 1 7.17 9H10V6H7.17Zm12 0A5.17 5.17 0 0 0 14 11.17V18h8v-7h-4.92A2.17 2.17 0 0 1 19.17 9H22V6h-2.83Z"/>
+                </svg>
+                <div class="min-w-0 text-[11px] leading-4 text-[var(--text-muted)] opacity-75 line-clamp-2 group-hover:line-clamp-none overflow-hidden transition-all duration-300">
                   {{ item.source_selection }}
                 </div>
+              </div>
+              <div
+                v-if="getContextReferences(item).length"
+                class="mt-1 flex flex-col gap-0.5"
+              >
+                <button
+                  v-for="reference in getContextReferences(item)"
+                  :key="reference.id_timestamp"
+                  type="button"
+                  class="context-reference-button flex w-full min-w-0 items-center rounded-md border-0 bg-[var(--background-modifier-hover)] text-left text-[11px] leading-4 text-[var(--text-muted)] opacity-70 transition-all hover:opacity-100"
+                  :title="reference.prompt"
+                  @click.stop="clickContextReference(reference.id_timestamp)"
+                >
+                  <span class="flex w-5 shrink-0 items-center justify-start font-medium text-apple-blue opacity-70">@</span>
+                  <span class="min-w-0 flex-1 truncate py-1">{{ buildPromptPreview(reference.prompt) }}</span>
+                </button>
               </div>
             </div>
           </div>
@@ -111,6 +127,7 @@ import { ref, computed, nextTick, onMounted } from 'vue';
 import { Notice } from 'obsidian';
 import { usePromptStore } from '../store/prompts'
 import type { Conversation } from '../settings'
+import { buildPromptPreview } from '../composables/usePromptMentions'
 
 const isInputFocused = ref(false);
 const promptStore = usePromptStore()
@@ -226,6 +243,16 @@ const clickSourceSelection = (item: Conversation) => {
   void promptStore.findAndSelectPromptBySourceSelection(item.source_selection, item.source_conversation_id, item.id_timestamp)
 }
 
+const getContextReferences = (item: Conversation) => {
+  return (item.context_refs || [])
+    .map((id) => promptStore.findPromptById(id))
+    .filter((reference): reference is Conversation => Boolean(reference));
+}
+
+const clickContextReference = (id: string) => {
+  promptStore.findAndSelectPromptById(id);
+}
+
 const copyLink = (item: Conversation) => {
   let linkText = 'AI Chat';
   if (item && item.prompt) {
@@ -250,3 +277,14 @@ const clearSelection = (event: MouseEvent) => {
   }
 }
 </script>
+
+<style scoped>
+.context-reference-button {
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  justify-content: flex-start !important;
+  box-shadow: none !important;
+}
+</style>
