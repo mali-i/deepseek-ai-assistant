@@ -1,9 +1,9 @@
 <template>
-    <div ref="overlayRootRef" data-follow-up-overlay-root class="absolute inset-0 flex w-full h-full overflow-hidden bg-[var(--background-primary)] text-[var(--text-normal)]">
-        <!-- 左侧边栏 -->
+    <div ref="overlayRootRef" data-follow-up-overlay-root class="absolute inset-0 flex flex-row-reverse w-full h-full overflow-hidden bg-[var(--background-primary)] text-[var(--text-normal)]">
+        <!-- 右侧边栏 -->
         <div
             class="relative flex flex-none h-full overflow-hidden bg-[var(--background-secondary)]"
-            :class="isSidebarOpen ? 'border-r border-[var(--apple-border)]' : 'border-r-0'"
+            :class="isSidebarOpen ? 'border-l border-[var(--apple-border)]' : 'border-l-0'"
             :style="{ width: isSidebarOpen ? asideWidth + 'px' : collapsedAsideWidth + 'px' }"
         >
             <div
@@ -54,7 +54,7 @@
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="9" y1="3" x2="9" y2="21"></line>
+                            <line x1="15" y1="3" x2="15" y2="21"></line>
                         </svg>
                     </button>
                 </div>
@@ -80,7 +80,7 @@
 
                 <!-- 拖拽手柄 -->
                 <div
-                    class="absolute right-0 top-0 z-50 flex h-full w-[6px] cursor-col-resize justify-end transition-colors duration-200 hover:bg-apple-blue/10 active:bg-apple-blue/20 group"
+                    class="absolute left-0 top-0 z-50 flex h-full w-[6px] cursor-col-resize justify-start transition-colors duration-200 hover:bg-apple-blue/10 active:bg-apple-blue/20 group"
                     @mousedown.prevent="startDrag"
                 >
                     <div class="h-full w-[2px] bg-transparent transition-colors duration-200 group-hover:bg-apple-blue group-active:bg-apple-blue"></div>
@@ -93,20 +93,6 @@
         <div class="flex h-full flex-1 flex-col overflow-hidden bg-[var(--background-secondary)]">
             <div class="flex h-11 flex-none items-center justify-between border-b border-[var(--apple-border)] px-4">
                 <div class="flex min-w-0 items-center gap-2">
-                    <button
-                        v-if="!isSidebarOpen"
-                        @click="toggleSidebar"
-                        type="button"
-                        class="inline-flex appearance-none items-center justify-center rounded-md border-0 bg-transparent p-2 text-[var(--text-muted)] shadow-none outline-none transition-all duration-150 hover:bg-[var(--background-modifier-hover)] hover:text-[var(--text-normal)] hover:shadow-sm active:scale-95 focus:outline-none focus:ring-0"
-                        style="border: none; box-shadow: none;"
-                        title="Open Sidebar"
-                    >
-                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="9" y1="3" x2="9" y2="21"></line>
-                     </svg>
-                    </button>
-
                     <div class="inline-flex min-w-0 items-center gap-1 overflow-hidden select-none">
                         <span class="truncate text-xs font-medium text-[var(--text-muted)]">
                             Conversation
@@ -140,8 +126,23 @@
                     </div>
                 </div>
 
-                <div class="text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--text-faint)]">
-                    Workspace
+                <div class="flex items-center gap-2">
+                    <div class="text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--text-faint)]">
+                        Workspace
+                    </div>
+                    <button
+                        v-if="!isSidebarOpen"
+                        @click="toggleSidebar"
+                        type="button"
+                        class="inline-flex appearance-none items-center justify-center rounded-md border-0 bg-transparent p-2 text-[var(--text-muted)] shadow-none outline-none transition-all duration-150 hover:bg-[var(--background-modifier-hover)] hover:text-[var(--text-normal)] hover:shadow-sm active:scale-95 focus:outline-none focus:ring-0"
+                        style="border: none; box-shadow: none;"
+                        title="Open Sidebar"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="15" y1="3" x2="15" y2="21"></line>
+                        </svg>
+                    </button>
                 </div>
             </div>
 
@@ -216,7 +217,7 @@ const startDrag = (e: MouseEvent) => {
 const handleDrag = (e: MouseEvent) => {
   if (!isDragging.value) return;
   
-  const delta = e.clientX - startX;
+  const delta = startX - e.clientX;
   const newWidth = startWidth + delta;
   
   // 限制最小宽度和最大宽度
@@ -241,4 +242,3 @@ onUnmounted(() => {
 });
 
 </script>
-
